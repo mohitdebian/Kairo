@@ -503,8 +503,8 @@ app.whenReady().then(() => {
         clipboard.writeText(params.linkURL)
         break
       case 'copy-link-text': {
-        const linkText = `${params.linkText || ''}`.trim()
-        clipboard.writeText(linkText || params.linkURL)
+        const linkText = params.linkText?.trim() || params.linkURL
+        clipboard.writeText(linkText)
         break
       }
       case 'bookmark-link':

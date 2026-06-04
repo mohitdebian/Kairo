@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./resources/icon.png" width="120" alt="Kairo Browser Logo" />
+  <img src="./launch-imgs/logo.png" width="120" alt="Kairo Browser Logo" />
   <h1>Kairo Browser</h1>
   <p><strong>A modern, productivity-focused browser inspired by Arc and Zen Browser.</strong></p>
 
@@ -25,10 +25,8 @@ We are building Kairo entirely in the open. Our goal is to create a community-dr
 
 ## 📸 Screenshots
 
-*(Replace with actual screenshots of your app once ready)*
-
 <div align="center">
-  <img src="https://via.placeholder.com/800x450.png?text=Kairo+Browser+Interface" alt="Kairo Browser UI" />
+  <img src="./launch-imgs/banner.png" alt="Kairo Browser UI" />
   <p><i>Kairo's beautiful, glassmorphic UI with Vertical Tabs and Spaces.</i></p>
 </div>
 

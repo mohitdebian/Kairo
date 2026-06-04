@@ -1,0 +1,13 @@
+node_modules/
+dist/
+out/
+build/
+.DS_Store
+*.log
+.env
+.env.local
+.env.*.local
+
+# electron-vite specific
+/.vite
+/release

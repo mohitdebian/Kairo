@@ -209,7 +209,8 @@ function createWindow(): void {
       })
 
       // Native Webpage Context Menu
-      contents.on('context-menu', (_, params) => {
+      contents.on('context-menu', (contextEvent, params) => {
+        contextEvent.preventDefault()
         const win = BrowserWindow.getAllWindows()[0]
         if (win) {
           let currentTabId = ''
@@ -225,8 +226,8 @@ function createWindow(): void {
           win.webContents.send('show-web-context-menu', {
             ...params,
             tabId: currentTabId,
-            x: params.x,
-            y: params.y
+            menuX: params.x,
+            menuY: params.y
           })
         }
       })
@@ -501,6 +502,11 @@ app.whenReady().then(() => {
       case 'copy-link':
         clipboard.writeText(params.linkURL)
         break
+      case 'copy-link-text': {
+        const linkText = `${params.linkText || ''}`.trim()
+        clipboard.writeText(linkText || params.linkURL)
+        break
+      }
       case 'bookmark-link':
         BrowserWindow.getAllWindows()[0]?.webContents.send('bookmark-url', params.linkURL)
         break
@@ -530,7 +536,10 @@ app.whenReady().then(() => {
         view.webContents.executeJavaScript(`
           (function() {
             let el = document.elementFromPoint(${params.x}, ${params.y});
-            if (el && el.tagName === 'VIDEO') {
+            if (el && el.closest) {
+              el = el.closest('video, audio');
+            }
+            if (el && (el.tagName === 'VIDEO' || el.tagName === 'AUDIO')) {
               if (el.paused) el.play(); else el.pause();
             }
           })();
@@ -540,7 +549,10 @@ app.whenReady().then(() => {
         view.webContents.executeJavaScript(`
           (function() {
             let el = document.elementFromPoint(${params.x}, ${params.y});
-            if (el && el.tagName === 'VIDEO') { el.muted = !el.muted; }
+            if (el && el.closest) {
+              el = el.closest('video, audio');
+            }
+            if (el && (el.tagName === 'VIDEO' || el.tagName === 'AUDIO')) { el.muted = !el.muted; }
           })();
         `)
         break
@@ -548,7 +560,10 @@ app.whenReady().then(() => {
         view.webContents.executeJavaScript(`
           (function() {
             let el = document.elementFromPoint(${params.x}, ${params.y});
-            if (el && el.tagName === 'VIDEO') { el.loop = !el.loop; }
+            if (el && el.closest) {
+              el = el.closest('video, audio');
+            }
+            if (el && (el.tagName === 'VIDEO' || el.tagName === 'AUDIO')) { el.loop = !el.loop; }
           })();
         `)
         break
@@ -556,6 +571,9 @@ app.whenReady().then(() => {
         view.webContents.executeJavaScript(`
           (function() {
             let el = document.elementFromPoint(${params.x}, ${params.y});
+            if (el && el.closest) {
+              el = el.closest('video');
+            }
             if (el && el.tagName === 'VIDEO') {
               if (document.pictureInPictureElement) document.exitPictureInPicture();
               else el.requestPictureInPicture();
@@ -582,6 +600,15 @@ app.whenReady().then(() => {
         break
       case 'paste-text':
         view.webContents.paste()
+        break
+      case 'undo':
+        view.webContents.undo()
+        break
+      case 'redo':
+        view.webContents.redo()
+        break
+      case 'select-all':
+        view.webContents.selectAll()
         break
       case 'search-web':
         BrowserWindow.getAllWindows()[0]?.webContents.send('open-in-new-tab', `https://google.com/search?q=${encodeURIComponent(params.selectionText)}`)
@@ -709,14 +736,15 @@ app.whenReady().then(() => {
       }
     })
 
-    view.webContents.on('context-menu', (_, params) => {
+    view.webContents.on('context-menu', (contextEvent, params) => {
+      contextEvent.preventDefault()
       const viewBounds = view.getBounds()
       
       event.sender.send('show-web-context-menu', {
         ...params,
         tabId,
-        x: viewBounds.x + params.x,
-        y: viewBounds.y + params.y
+        menuX: viewBounds.x + params.x,
+        menuY: viewBounds.y + params.y
       })
     })
     

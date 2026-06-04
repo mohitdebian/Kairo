@@ -26,6 +26,16 @@ interface ContextMenuParams {
   dictionarySuggestions: string[]
   frameCharset: string
   tabId: string
+  menuX?: number
+  menuY?: number
+  editFlags?: {
+    canUndo?: boolean
+    canRedo?: boolean
+    canCut?: boolean
+    canCopy?: boolean
+    canPaste?: boolean
+    canSelectAll?: boolean
+  }
 }
 
 export const WebContextMenu = () => {
@@ -71,6 +81,10 @@ export const WebContextMenu = () => {
 
   const renderItems = () => {
     const items: React.ReactNode[] = []
+    const selectionText = `${params.selectionText || ''}`.trim()
+    const hasSelection = selectionText.length > 0
+    const isVideo = params.mediaType === 'video'
+    const isAudio = params.mediaType === 'audio'
 
     // -------------------------
     // LINK OPTIONS
@@ -98,8 +112,8 @@ export const WebContextMenu = () => {
       }
 
       items.push(
-        <MenuItem key="copy-link" icon={<Link size={14}/>} label="Copy Link" onClick={() => executeAction('copy-link')} />,
-        <MenuItem key="copy-link-address" icon={<Copy size={14}/>} label="Copy Link Address" onClick={() => executeAction('copy-link')} />,
+        <MenuItem key="copy-link-address" icon={<Link size={14}/>} label="Copy Link Address" onClick={() => executeAction('copy-link')} />,
+        <MenuItem key="copy-link-text" icon={<Copy size={14}/>} label="Copy Link Text" onClick={() => executeAction('copy-link-text')} />,
         <MenuItem key="bookmark-link" icon={<Bookmark size={14}/>} label="Bookmark Link" onClick={() => executeAction('bookmark-link')} />,
         <MenuItem key="save-link" icon={<Save size={14}/>} label="Save Link As..." onClick={() => executeAction('save-link')} />,
         <MenuSeparator key="sep-link-2" />
@@ -121,52 +135,53 @@ export const WebContextMenu = () => {
     }
 
     // -------------------------
-    // VIDEO OPTIONS
+    // MEDIA OPTIONS
     // -------------------------
-    if (params.mediaType === 'video') {
+    if (isVideo || isAudio) {
+      const mediaLabel = isAudio ? 'Audio' : 'Video'
       items.push(
-        <MenuItem key="vid-play" icon={<Play size={14}/>} label="Play / Pause" onClick={() => executeAction('video-play-pause')} />,
-        <MenuItem key="vid-mute" icon={<VolumeX size={14}/>} label="Mute / Unmute" onClick={() => executeAction('video-mute')} />,
-        <MenuItem key="vid-loop" icon={<Repeat size={14}/>} label="Loop" onClick={() => executeAction('video-loop')} />,
-        <MenuItem key="vid-pip" icon={<Maximize size={14}/>} label="Picture in Picture" onClick={() => executeAction('video-pip')} />,
-        <MenuSeparator key="sep-vid-1" />,
-        <MenuItem key="copy-vid-addr" icon={<Link size={14}/>} label="Copy Video URL" onClick={() => executeAction('copy-video-url')} />,
-        <MenuItem key="save-vid" icon={<Download size={14}/>} label="Save Video As..." onClick={() => executeAction('save-video')} />,
-        <MenuItem key="vid-new-tab" icon={<ExternalLink size={14}/>} label="Open Video in New Tab" onClick={() => executeAction('open-video-new-tab')} />,
-        <MenuSeparator key="sep-vid-2" />
+        <MenuItem key="media-play" icon={<Play size={14}/>} label="Play / Pause" onClick={() => executeAction('video-play-pause')} />,
+        <MenuItem key="media-mute" icon={<VolumeX size={14}/>} label="Mute / Unmute" onClick={() => executeAction('video-mute')} />,
+        ...(isVideo ? [
+          <MenuItem key="media-loop" icon={<Repeat size={14}/>} label="Loop" onClick={() => executeAction('video-loop')} />,
+          <MenuItem key="media-pip" icon={<Maximize size={14}/>} label="Picture in Picture" onClick={() => executeAction('video-pip')} />
+        ] : []),
+        <MenuSeparator key="sep-media-1" />,
+        <MenuItem key="copy-media-addr" icon={<Link size={14}/>} label={`Copy ${mediaLabel} URL`} onClick={() => executeAction('copy-video-url')} />,
+        <MenuItem key="save-media" icon={<Download size={14}/>} label={`Save ${mediaLabel} As...`} onClick={() => executeAction('save-video')} />,
+        <MenuItem key="media-new-tab" icon={<ExternalLink size={14}/>} label={`Open ${mediaLabel} in New Tab`} onClick={() => executeAction('open-video-new-tab')} />,
+        <MenuSeparator key="sep-media-2" />
       )
     }
 
     // -------------------------
     // SELECTION TEXT OPTIONS
     // -------------------------
-    if (params.selectionText) {
-      const shortText = params.selectionText.length > 15 ? params.selectionText.substring(0, 15) + '...' : params.selectionText
-      
+    if (params.isEditable) {
       items.push(
-        <MenuItem key="copy-text" icon={<Copy size={14}/>} label="Copy" onClick={() => executeAction('copy-text')} />
+        <MenuItem key="undo" label="Undo" onClick={() => executeAction('undo')} />,
+        <MenuItem key="redo" label="Redo" onClick={() => executeAction('redo')} />,
+        <MenuSeparator key="sep-edit-1" />,
+        <MenuItem key="cut-text" icon={<Scissors size={14}/>} label="Cut" onClick={() => executeAction('cut-text')} />,
+        <MenuItem key="copy-text" icon={<Copy size={14}/>} label="Copy" onClick={() => executeAction('copy-text')} />,
+        <MenuItem key="paste-text" icon={<ClipboardPaste size={14}/>} label="Paste" onClick={() => executeAction('paste-text')} />,
+        <MenuItem key="select-all" label="Select All" onClick={() => executeAction('select-all')} />,
+        <MenuSeparator key="sep-edit-2" />
       )
-      
-      if (params.isEditable) {
-        items.push(<MenuItem key="cut-text" icon={<Scissors size={14}/>} label="Cut" onClick={() => executeAction('cut-text')} />)
-      }
+    }
+
+    if (hasSelection && !params.isEditable) {
+      const shortText = selectionText.length > 15 ? selectionText.substring(0, 15) + '...' : selectionText
       
       items.push(
+        <MenuItem key="copy-text" icon={<Copy size={14}/>} label="Copy" onClick={() => executeAction('copy-text')} />,
         <MenuSeparator key="sep-text-1" />,
-        <MenuItem key="search-web" icon={<Search size={14}/>} label={`Search Web for "${shortText}"`} onClick={() => executeAction('search-web')} />,
+        <MenuItem key="search-web" icon={<Search size={14}/>} label={`Search with Google for "${shortText}"`} onClick={() => executeAction('search-web')} />,
         <MenuItem key="ask-ai" icon={<Sparkles size={14} className="text-purple-400"/>} label="Ask AI About Selection" onClick={() => executeAction('ask-ai')} />,
         <MenuItem key="translate" icon={<Languages size={14}/>} label="Translate Selection" onClick={() => executeAction('translate-text')} />,
         <MenuItem key="text-new-tab" icon={<ExternalLink size={14}/>} label="Open Selection in New Tab" onClick={() => executeAction('open-text-new-tab')} />,
         <MenuItem key="save-notes" icon={<Bookmark size={14}/>} label="Save Selection to Notes" onClick={() => executeAction('save-to-notes')} />,
         <MenuSeparator key="sep-text-2" />
-      )
-    }
-
-    // Editable (but no selection)
-    if (params.isEditable && !params.selectionText) {
-      items.push(
-        <MenuItem key="paste-text" icon={<ClipboardPaste size={14}/>} label="Paste" onClick={() => executeAction('paste-text')} />,
-        <MenuSeparator key="sep-edit-1" />
       )
     }
 
@@ -220,8 +235,10 @@ export const WebContextMenu = () => {
   // Calculate safe position
   const menuWidth = 260
   const menuMaxHeight = 400
-  const safeX = params ? Math.min(params.x, window.innerWidth - menuWidth - 10) : 0
-  const safeY = params ? Math.min(params.y, window.innerHeight - menuMaxHeight - 10) : 0
+  const menuX = params?.menuX ?? params?.x ?? 0
+  const menuY = params?.menuY ?? params?.y ?? 0
+  const safeX = Math.min(menuX, window.innerWidth - menuWidth - 10)
+  const safeY = Math.min(menuY, window.innerHeight - menuMaxHeight - 10)
 
   return (
     <div className="fixed inset-0 z-[99999] pointer-events-none overflow-hidden">

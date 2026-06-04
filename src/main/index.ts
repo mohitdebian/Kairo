@@ -503,8 +503,8 @@ app.whenReady().then(() => {
         clipboard.writeText(params.linkURL)
         break
       case 'copy-link-text': {
-        const linkText = params.linkText?.trim() || params.linkURL
-        clipboard.writeText(linkText)
+        const linkText = params.linkText?.trim()
+        clipboard.writeText(linkText && linkText.length > 0 ? linkText : params.linkURL)
         break
       }
       case 'bookmark-link':
@@ -561,9 +561,9 @@ app.whenReady().then(() => {
           (function() {
             let el = document.elementFromPoint(${params.x}, ${params.y});
             if (el && el.closest) {
-              el = el.closest('video, audio');
+              el = el.closest('video');
             }
-            if (el && (el.tagName === 'VIDEO' || el.tagName === 'AUDIO')) { el.loop = !el.loop; }
+            if (el && el.tagName === 'VIDEO') { el.loop = !el.loop; }
           })();
         `)
         break

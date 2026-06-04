@@ -81,7 +81,7 @@ export const WebContextMenu = () => {
 
   const renderItems = () => {
     const items: React.ReactNode[] = []
-    const selectionText = `${params.selectionText || ''}`.trim()
+    const selectionText = (params.selectionText || '').trim()
     const hasSelection = selectionText.length > 0
     const isVideo = params.mediaType === 'video'
     const isAudio = params.mediaType === 'audio'

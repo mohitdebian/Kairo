@@ -21,7 +21,6 @@ interface OmniboxResult {
 
 
 export const AddressBar = ({ primaryActiveTab }: AddressBarProps) => {
-  const tabs = useBrowserStore(useShallow(state => state.tabs))
   const activeWorkspaceId = useBrowserStore(state => state.activeWorkspaceId)
   const searchEngine = useBrowserStore(state => state.searchEngine)
   const [inputValue, setInputValue] = useState('')
@@ -46,7 +45,8 @@ export const AddressBar = ({ primaryActiveTab }: AddressBarProps) => {
 
     const timer = setTimeout(async () => {
       if (window.electron?.ipcRenderer) {
-        const results = await window.electron.ipcRenderer.invoke('omnibox-search', inputValue, tabs, [])
+        const currentTabs = useBrowserStore.getState().tabs
+        const results = await window.electron.ipcRenderer.invoke('omnibox-search', inputValue, currentTabs, [])
         
         // Add search suggestion at the bottom if it's not a direct URL
         const isUrl = inputValue.includes('.') && !inputValue.includes(' ')
@@ -66,7 +66,7 @@ export const AddressBar = ({ primaryActiveTab }: AddressBarProps) => {
     }, 150)
 
     return () => clearTimeout(timer)
-  }, [inputValue, isFocused, tabs, searchEngine])
+  }, [inputValue, isFocused, searchEngine])
 
   useEffect(() => {
     setSelectedIndex(0)

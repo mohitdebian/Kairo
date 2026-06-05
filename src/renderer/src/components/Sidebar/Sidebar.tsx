@@ -21,6 +21,7 @@ import {
 import { useBrowserStore, Tab } from '../../store/useBrowserStore'
 import { useShallow } from 'zustand/react/shallow'
 import { cn } from '../../utils/cn'
+import { Virtuoso } from 'react-virtuoso'
 import { MusicPlayer } from './MusicPlayer'
 import { AddressBar } from './AddressBar'
 import { Folder } from './Folder'
@@ -333,8 +334,8 @@ export const Sidebar = () => {
   const activeFolders = useBrowserStore(useShallow(state => 
     state.folders.filter(f => f.workspaceId === activeWorkspaceId)
   ))
-  const activeWorkspaceTabs = useBrowserStore(useShallow(state => 
-    state.tabs.filter(t => t.workspaceId === activeWorkspaceId)
+  const activeWorkspaceTabIds = useBrowserStore(useShallow(state => 
+    state.tabs.filter(t => t.workspaceId === activeWorkspaceId).map(t => t.id)
   ))
   
   const primaryActiveTabId = useBrowserStore(state => state.activeTabIds[0])
@@ -418,8 +419,8 @@ export const Sidebar = () => {
 
   // Handle global shortcuts and IPC from main process
   useEffect(() => {
-    const handleShortcutReload = (_event: any) => handleReload()
-    const handleOpenInNewTab = (_event: any, url: string) => {
+    const handleShortcutReload = () => handleReload()
+    const handleOpenInNewTab = (url: string) => {
       useBrowserStore.getState().addTab({ title: url, url, workspaceId: activeWorkspaceId })
     }
 
@@ -615,12 +616,22 @@ export const Sidebar = () => {
           style={{ width: Math.max(220, sidebarWidth || 280) }}
         >
           <div className="h-10 flex items-center justify-between px-3 drag-region select-none relative z-50">
-            <button
-              onClick={handleReload}
-              className="p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-white/5"
-            >
-              <RotateCw size={14} className={cn(primaryActiveTab?.isLoading && 'animate-spin')} />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => useBrowserStore.getState().toggleSidebarCollapse()}
+                className="p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-white/5 no-drag"
+                title="Collapse Sidebar"
+              >
+                <PanelLeft size={14} />
+              </button>
+              <button
+                onClick={handleReload}
+                className="p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-white/5 no-drag"
+                title="Reload Tab"
+              >
+                <RotateCw size={14} className={cn(primaryActiveTab?.isLoading && 'animate-spin')} />
+              </button>
+            </div>
             <div className="flex-1" />
             <button
               onClick={() => useBrowserStore.getState().toggleCommandPalette()}
@@ -804,19 +815,25 @@ export const Sidebar = () => {
           <MusicPlayer />
           <div className="w-8 h-px bg-white/10 my-4 shrink-0" />
 
-          {/* Flat list of all tabs in active workspace */}
-          <div className="flex flex-col gap-2 items-center flex-1 overflow-y-auto no-scrollbar w-full no-drag">
-            {activeWorkspaceTabs.map((tab) => (
-              <TabItem
-                key={tab.id}
-                tabId={tab.id}
-                isCollapsed={true}
-                onContextMenu={handleContextMenu}
-                onPointerDown={handlePointerDown}
-                isDragging={isDraggingActive && dragSession?.draggedId === tab.id}
-                hoverSide={dragSession?.hover?.id === tab.id ? dragSession?.hover?.side : null}
-              />
-            ))}
+          {/* Virtualized list of all tabs in active workspace */}
+          <div className="flex flex-col flex-1 w-full no-drag relative overflow-hidden">
+            <Virtuoso
+              style={{ height: '100%', width: '100%' }}
+              data={activeWorkspaceTabIds}
+              itemContent={(_index, tabId) => (
+                <div className="pb-2 flex justify-center w-full px-2">
+                  <TabItem
+                    key={tabId}
+                    tabId={tabId}
+                    isCollapsed={true}
+                    onContextMenu={handleContextMenu}
+                    onPointerDown={handlePointerDown}
+                    isDragging={isDraggingActive && dragSession?.draggedId === tabId}
+                    hoverSide={dragSession?.hover?.id === tabId ? dragSession?.hover?.side : null}
+                  />
+                </div>
+              )}
+            />
           </div>
 
           <div className="flex flex-col items-center mt-auto pt-4 no-drag w-full shrink-0 border-t border-white/[0.03]">

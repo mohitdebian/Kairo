@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Globe, Layout, Clock, Bookmark, Pin, Plus } from 'lucide-react'
 import { useBrowserStore } from '../../store/useBrowserStore'
@@ -139,6 +139,15 @@ export const CommandPalette = () => {
     }
   }
 
+  const inputRef = useRef<HTMLInputElement>(null)
+  
+  useEffect(() => {
+    if (isCommandPaletteOpen) {
+      // Focus after a short delay to ensure animation doesn't interfere
+      setTimeout(() => inputRef.current?.focus(), 50)
+    }
+  }, [isCommandPaletteOpen])
+
   return (
     <AnimatePresence>
       {isCommandPaletteOpen && (
@@ -159,6 +168,7 @@ export const CommandPalette = () => {
             <div className="flex items-center px-4 py-4 border-b border-white/10">
               <Search size={20} className="text-white/40 mr-3" />
               <input
+                ref={inputRef}
                 autoFocus
                 type="text"
                 value={query}

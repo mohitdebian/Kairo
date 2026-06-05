@@ -144,7 +144,7 @@ const BrowserTab = React.memo(({ tabId, activeTabIds, isSplitMode, showDashboard
 
   // In split mode, portal into the leaf element; otherwise render in-place
   const inner = (
-    <div className="w-full h-full relative overflow-hidden bg-transparent" style={{ pointerEvents: isVisible ? 'auto' : 'none' }}>
+    <div className={isSplitMode ? "w-full h-full relative overflow-hidden bg-transparent" : "absolute inset-0 bg-transparent"} style={{ pointerEvents: isVisible ? 'auto' : 'none', opacity: isVisible ? 1 : 0, zIndex: isVisible ? 10 : 0 }}>
       {isSleeping ? (
         <SleepingTabPlaceholder tab={tab} onWake={handleWake} />
       ) : (
@@ -157,8 +157,7 @@ const BrowserTab = React.memo(({ tabId, activeTabIds, isSplitMode, showDashboard
     return createPortal(inner, leafEl)
   }
 
-  // Non-split: only render if this is the active tab (avoids stacking issues)
-  if (!isActive) return null
+  // Non-split: render all tabs so they stay alive, but stack them
   return inner
 })
 
@@ -174,17 +173,17 @@ export const BrowserView = () => {
   const activeTabUrls = activeTabUrlsStr ? activeTabUrlsStr.split(',') : []
 
   useEffect(() => {
-    const handleNav = (_: any, tabId: string, url: string) => {
+    const handleNav = (tabId: string, url: string) => {
       useBrowserStore.getState().updateTabUrl(tabId, url);
     };
-    const handleTitle = (_: any, tabId: string, title: string) => {
+    const handleTitle = (tabId: string, title: string) => {
       useBrowserStore.getState().updateTabTitle(tabId, title);
     };
-    const handleFavicon = (_: any, tabId: string, favicon: string) => {
+    const handleFavicon = (tabId: string, favicon: string) => {
       useBrowserStore.getState().updateTabFavicon(tabId, favicon);
     };
-    const handleLoading = (_: any, tabId: string, isLoading: boolean) => useBrowserStore.getState().updateTabLoading(tabId, isLoading);
-    const handleMusic = (_: any, tabId: string, stateStr: string) => {
+    const handleLoading = (tabId: string, isLoading: boolean) => useBrowserStore.getState().updateTabLoading(tabId, isLoading);
+    const handleMusic = (tabId: string, stateStr: string) => {
         try {
           const state = JSON.parse(stateStr);
           useBrowserStore.getState().setMusicTabId(tabId);

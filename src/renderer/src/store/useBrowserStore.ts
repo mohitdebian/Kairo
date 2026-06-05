@@ -177,7 +177,7 @@ const defaultWorkspaces: Workspace[] = [
 ]
 
 const initialTabs: Tab[] = [
-  { id: 't1', url: 'https://start.duckduckgo.com', title: 'Dashboard', workspaceId: '1' }
+  { id: 't1', url: 'dashboard', title: 'New Tab', workspaceId: '1' }
 ]
 
 export const useBrowserStore = create<BrowserState>()(

@@ -46,11 +46,11 @@ export const AppLayout = () => {
   const isFullscreen = useBrowserStore((state) => state.isFullscreen)
 
   useEffect(() => {
-    const handleFullscreenState = (_event: any, isFullscreen: boolean) => {
+    const handleFullscreenState = (isFullscreen: boolean) => {
       useBrowserStore.getState().setFullscreen(isFullscreen)
     }
-    const handleNewTab = (_event: any) => {
-      useBrowserStore.getState().addTab({ title: 'New Tab', url: 'dashboard', workspaceId: useBrowserStore.getState().activeWorkspaceId })
+    const handleNewTab = () => {
+      useBrowserStore.getState().toggleCommandPalette(true)
     }
 
     const handleNewTabDOM = (e: KeyboardEvent) => {
@@ -79,7 +79,7 @@ export const AppLayout = () => {
         useBrowserStore.getState().splitCurrentPane('horizontal')
       }
     }
-    const handleOpenInSpace = (_event: any, data: { url: string; spaceId: string }) => {
+    const handleOpenInSpace = (data: { url: string; spaceId: string }) => {
       console.log('handleOpenInSpace received:', data)
       const store = useBrowserStore.getState()
       let targetSpaceId = data.spaceId
@@ -91,12 +91,12 @@ export const AppLayout = () => {
       store.addTab({ title: 'New Tab', url: data.url, workspaceId: targetSpaceId })
     }
 
-    const handleBookmarkUrl = (_event: any, url: string) => {
+    const handleBookmarkUrl = (url: string) => {
       console.log('Bookmark added:', url)
       alert(`Bookmarked: ${url}`)
     }
 
-    const handleAddTabToFolder = (_event: any, data: { url: string; folderId: string }) => {
+    const handleAddTabToFolder = (data: { url: string; folderId: string }) => {
       const store = useBrowserStore.getState()
       const folder = store.folders.find((f) => f.id === data.folderId)
       if (folder) {
@@ -109,19 +109,19 @@ export const AppLayout = () => {
       }
     }
 
-    const handleOpenInSplit = (_event: any, url: string) => {
+    const handleOpenInSplit = (url: string) => {
       const store = useBrowserStore.getState()
       store.splitCurrentPane('horizontal', url)
     }
 
-    const handleSaveToNotes = (_event: any, data: { text: string; sourceUrl: string }) => {
+    const handleSaveToNotes = (data: { text: string; sourceUrl: string }) => {
       console.log('Saved to notes:', data.text)
       alert(
         `Saved to Notes:\n\n${data.text.length > 50 ? data.text.substring(0, 50) + '...' : data.text}`
       )
     }
 
-    const handleDownloadStarted = (_event: any, item: any) => {
+    const handleDownloadStarted = (item: any) => {
       useBrowserStore.getState().addDownload({
         id: item.id,
         url: item.url,
@@ -136,14 +136,14 @@ export const AppLayout = () => {
       }
     }
 
-    const handleDownloadProgress = (_event: any, data: any) => {
+    const handleDownloadProgress = (data: any) => {
       useBrowserStore.getState().updateDownload(data.id, {
         receivedBytes: data.receivedBytes,
         totalBytes: data.totalBytes
       })
     }
 
-    const handleDownloadComplete = (_event: any, data: any) => {
+    const handleDownloadComplete = (data: any) => {
       useBrowserStore.getState().updateDownload(data.id, {
         state: data.state
       })
@@ -243,11 +243,10 @@ export const AppLayout = () => {
               <WindowControls />
             </div>
           )}
-          <div className={cn('flex-1 relative overflow-hidden', !isFullscreen && 'pr-2 pb-2')}>
+          <div className={cn('flex-1 relative overflow-hidden')}>
             <div
               className={cn(
-                'w-full h-full relative overflow-hidden bg-black',
-                !isFullscreen && 'border border-white/10'
+                'w-full h-full relative overflow-hidden bg-black'
               )}
             >
               <BrowserView />

@@ -3,6 +3,7 @@
 Our vision for Kairo is to build the ultimate web operating system. This roadmap outlines our major milestones. It is a living document and subject to change based on community feedback.
 
 ## Phase 1: Core Browser (Currently Here)
+
 The foundation of the browser, ensuring stability, speed, and standard web compatibility.
 
 - [x] Electron + React architecture setup
@@ -15,6 +16,7 @@ The foundation of the browser, ensuring stability, speed, and standard web compa
 - [ ] Basic Settings UI
 
 ## Phase 2: Productivity Features
+
 Transforming Kairo from a basic browser into a productivity tool.
 
 - [x] Split View (Side-by-side tabs)
@@ -26,6 +28,7 @@ Transforming Kairo from a basic browser into a productivity tool.
 - [ ] Custom Keybindings
 
 ## Phase 3: AI Features
+
 Integrating intelligence to reduce digital clutter.
 
 - [ ] AI Workspace Suggestions (Auto-organize messy tabs)
@@ -35,6 +38,7 @@ Integrating intelligence to reduce digital clutter.
 - [ ] Quick "Ask AI" context menu integration
 
 ## Phase 4: Sync & Collaboration
+
 Making your digital life accessible anywhere.
 
 - [ ] Kairo Account System
@@ -43,6 +47,7 @@ Making your digital life accessible anywhere.
 - [ ] Mobile Companion App (iOS/Android)
 
 ## Phase 5: Ecosystem
+
 Opening the platform for extensions and custom tools.
 
 - [ ] Chrome Extensions API Support (Manifest V3)
@@ -52,4 +57,4 @@ Opening the platform for extensions and custom tools.
 
 ---
 
-*Want to help us reach these milestones faster? Check out our [Contributing Guide](CONTRIBUTING.md) and pick up a task!*
+_Want to help us reach these milestones faster? Check out our [Contributing Guide](CONTRIBUTING.md) and pick up a task!_

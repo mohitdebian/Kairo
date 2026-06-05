@@ -1,10 +1,9 @@
 ---
 name: Security Report
 about: Report a security vulnerability
-title: "[SECURITY] "
+title: '[SECURITY] '
 labels: security
 assignees: ''
-
 ---
 
 **STOP: DO NOT REPORT SECURITY VULNERABILITIES HERE**

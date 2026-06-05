@@ -6,7 +6,11 @@ export const createLeaf = (tabId: string): SplitNode => ({
   tabId
 })
 
-export const createSplit = (direction: SplitDirection, children: SplitNode[], sizes: number[] = [50, 50]): SplitNode => ({
+export const createSplit = (
+  direction: SplitDirection,
+  children: SplitNode[],
+  sizes: number[] = [50, 50]
+): SplitNode => ({
   id: `split-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
   type: 'split',
   direction,
@@ -41,7 +45,7 @@ export const findNodeByTabId = (root: SplitNode, tabId: string): SplitNode | und
 // Find parent of a node
 export const findParent = (root: SplitNode, childId: string): SplitNode | undefined => {
   if (!root.children) return undefined
-  if (root.children.some(c => c.id === childId)) return root
+  if (root.children.some((c) => c.id === childId)) return root
   for (const child of root.children) {
     const parent = findParent(child, childId)
     if (parent) return parent
@@ -50,48 +54,56 @@ export const findParent = (root: SplitNode, childId: string): SplitNode | undefi
 }
 
 // Split a leaf node into a split node containing the original leaf and a new leaf
-export const splitLeafNode = (root: SplitNode, targetLeafId: string, direction: SplitDirection, newTabId: string, insertBefore: boolean = false): SplitNode => {
+export const splitLeafNode = (
+  root: SplitNode,
+  targetLeafId: string,
+  direction: SplitDirection,
+  newTabId: string,
+  insertBefore: boolean = false
+): SplitNode => {
   if (root.id === targetLeafId && root.type === 'tab') {
     const originalNode = { ...root }
     const newNode = createLeaf(newTabId)
     return createSplit(direction, insertBefore ? [newNode, originalNode] : [originalNode, newNode])
   }
-  
+
   if (root.children) {
     return {
       ...root,
-      children: root.children.map(child => splitLeafNode(child, targetLeafId, direction, newTabId, insertBefore))
+      children: root.children.map((child) =>
+        splitLeafNode(child, targetLeafId, direction, newTabId, insertBefore)
+      )
     }
   }
-  
+
   return root
 }
 
 // Remove a node and collapse unnecessary splits
 export const removeNode = (root: SplitNode, targetId: string): SplitNode | null => {
   if (root.id === targetId) return null
-  
+
   if (root.children) {
     const newChildren = root.children
-      .map(child => removeNode(child, targetId))
+      .map((child) => removeNode(child, targetId))
       .filter((c): c is SplitNode => c !== null)
-      
+
     if (newChildren.length === 0) return null
     if (newChildren.length === 1) return newChildren[0] // Collapse split
-    
+
     // If a child was removed, adjust sizes to maintain sum
     let newSizes = root.sizes || [50, 50]
     if (newChildren.length < root.children.length) {
       newSizes = newChildren.map(() => 100 / newChildren.length)
     }
-    
+
     return {
       ...root,
       children: newChildren,
       sizes: newSizes
     }
   }
-  
+
   return root
 }
 
@@ -112,7 +124,7 @@ export const replaceTabInLeaf = (root: SplitNode, leafId: string, newTabId: stri
   if (root.children) {
     return {
       ...root,
-      children: root.children.map(c => replaceTabInLeaf(c, leafId, newTabId))
+      children: root.children.map((c) => replaceTabInLeaf(c, leafId, newTabId))
     }
   }
   return root

@@ -1,12 +1,24 @@
-import { app, shell, BrowserWindow, ipcMain, WebContentsView } from 'electron'
+import {
+  app,
+  shell,
+  BrowserWindow,
+  ipcMain,
+  WebContentsView,
+  Menu,
+  MenuItem,
+  clipboard
+} from 'electron'
 import { join } from 'path'
 import { electronApp, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
-// Fix for Linux sandbox issue during development
+// Fix for Linux sandbox issue during development and production
 if (process.platform === 'linux') {
   app.commandLine.appendSwitch('no-sandbox')
-  app.commandLine.appendSwitch('disable-gpu-memory-buffer-video-frames') // Hide harmless SharedImageBackingFactory GPU warnings
+  app.commandLine.appendSwitch('disable-setuid-sandbox')
+  app.commandLine.appendSwitch('disable-gpu-memory-buffer-video-frames')
+  // Force software rendering to prevent compositor color bleeding
+  app.disableHardwareAcceleration()
 }
 
 // --- Extreme RAM Optimization (Target: < 200MB) ---
@@ -15,8 +27,7 @@ app.commandLine.appendSwitch('disable-site-isolation-trials')
 // Force Chromium into low-memory mode (disables some visual fluff and optimizes V8 GC for tight memory)
 app.commandLine.appendSwitch('enable-low-end-device-mode')
 // Limit the number of background renderer processes to force process-sharing between tabs
-app.commandLine.appendSwitch('renderer-process-limit', '2')
-
+app.commandLine.appendSwitch('enable-features', 'SmoothScrolling,OverlayScrollbar,TouchpadOverscrollHistoryNavigation,OverscrollHistoryNavigation')
 
 // Remove the manual Client Hint disable so Google sees valid native modern browser hints.
 
@@ -48,16 +59,18 @@ function createWindow(): void {
     title: 'Kairo',
     width: 1200,
     height: 800,
-    show: false,
+    show: true,
     autoHideMenuBar: true,
     frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
+    transparent: false,
+    backgroundColor: '#000000', // Pure black to prevent any color bleed
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
-      webviewTag: true
+      webviewTag: true,
+      offscreen: false, // Ensure on-screen rendering
+      backgroundThrottling: false
     }
   })
 
@@ -77,7 +90,7 @@ function createWindow(): void {
       '*://*.amazon-adsystem.com/*'
     ]
   }
-  
+
   const { session } = require('electron')
   session.defaultSession.webRequest.onBeforeRequest(filter, (_details, callback) => {
     callback({ cancel: true })
@@ -93,14 +106,47 @@ function createWindow(): void {
   })
 
   // Clear the cache periodically (every 24 hours) to keep it fresh
-  setInterval(async () => {
-    try {
-      await session.defaultSession.clearCache()
-      console.log('Periodic cache clearing completed.')
-    } catch (e) {
-      console.error('Failed to clear cache:', e)
-    }
-  }, 24 * 60 * 60 * 1000)
+  setInterval(
+    async () => {
+      try {
+        await session.defaultSession.clearCache()
+        console.log('Periodic cache clearing completed.')
+      } catch (e) {
+        console.error('Failed to clear cache:', e)
+      }
+    },
+    24 * 60 * 60 * 1000
+  )
+
+  // Handle Downloads
+  session.defaultSession.on('will-download', (_event, item, _webContents) => {
+    // We send events to the main Window (UI layer)
+    const id = Date.now().toString()
+    
+    mainWindow.webContents.send('download-started', {
+      id,
+      url: item.getURL(),
+      filename: item.getFilename(),
+      totalBytes: item.getTotalBytes()
+    })
+
+    item.on('updated', (_e, state) => {
+      if (state === 'interrupted') {
+        mainWindow.webContents.send('download-complete', { id, state: 'interrupted' })
+      } else if (state === 'progressing') {
+        if (item.isPaused()) return
+        mainWindow.webContents.send('download-progress', {
+          id,
+          receivedBytes: item.getReceivedBytes(),
+          totalBytes: item.getTotalBytes()
+        })
+      }
+    })
+
+    item.once('done', (_e, state) => {
+      mainWindow.webContents.send('download-complete', { id, state })
+    })
+  })
 
   // Set the window to ignore menu bar for cleaner UI
   mainWindow.setMenuBarVisibility(false)
@@ -114,13 +160,22 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
+  mainWindow.webContents.on('context-menu', (_, params) => {
+    mainWindow.webContents.send('show-web-context-menu', {
+      ...params,
+      tabId: 'dashboard',
+      x: params.x,
+      y: params.y
+    })
+  })
+
   // Global Fullscreen Listeners
   mainWindow.on('enter-full-screen', () => {
     // Intentionally do NOT send window-fullscreen-state true here.
     // If the user presses F11, they want the whole browser (with sidebar) in fullscreen.
     // We only send true during 'enter-html-full-screen' (e.g. YouTube video).
   })
-  
+
   mainWindow.on('leave-full-screen', () => {
     mainWindow.webContents.send('window-fullscreen-state', false)
     requestTabBoundsSync()
@@ -192,17 +247,17 @@ function createWindow(): void {
             overrideBrowserWindowOptions: {
               autoHideMenuBar: true,
               backgroundColor: '#09090b',
-              titleBarStyle: 'hiddenInset',
+              titleBarStyle: 'hiddenInset'
             }
           }
         }
-        
+
         // Shift+Click (new-window disposition) -> Open in split view
         if (details.disposition === 'new-window') {
           mainWindow.webContents.send('open-in-split', details.url)
           return { action: 'deny' }
         }
-        
+
         // Otherwise, it's a standard link meant for a new tab (disposition: foreground-tab or background-tab)
         mainWindow.webContents.send('open-in-new-tab', details.url)
         return { action: 'deny' }
@@ -219,7 +274,7 @@ function createWindow(): void {
               break
             }
           }
-          
+
           // Wait, for <webview> tags, getBounds() doesn't exist on contents.
           // But Kairo doesn't use <webview> anyway, so this block is mostly fallback.
           win.webContents.send('show-web-context-menu', {
@@ -262,26 +317,82 @@ function createWindow(): void {
 // We dynamically strip Electron and app identifiers from the default Chrome user agent
 // after the app is ready to ensure flawless Google Login and 2FA.
 
+import { initDatabase } from './db/database'
+import { HistoryManager } from './services/HistoryManager'
+import { OmniboxSearchEngine } from './services/OmniboxSearchEngine'
+
 app.commandLine.appendSwitch('disk-cache-size', '524288000') // 500MB cache
 
 app.whenReady().then(() => {
+  // Initialize SQLite Database
+  try {
+    initDatabase()
+  } catch (err) {
+    console.error('Failed to initialize SQLite Database:', err)
+  }
+
+  // Omnibox IPC Handlers
+  ipcMain.handle('omnibox-search', (_, query: string, activeTabs: any[], bookmarks: any[]) => {
+    return OmniboxSearchEngine.search(query, activeTabs, bookmarks)
+  })
+
+  ipcMain.on('omnibox-visit', (_, url: string) => {
+    HistoryManager.incrementTypedCount(url)
+  })
+
+  ipcMain.handle('get-recent-history', (_, limit?: number) => {
+    return HistoryManager.getRecentHistory(limit)
+  })
+
+  ipcMain.on('clear-history', () => {
+    HistoryManager.clearHistory()
+  })
+
+  ipcMain.on('delete-history-entry', (_, url: string) => {
+    HistoryManager.deleteVisit(url)
+  })
+
+  ipcMain.on('tab-go-back', (_, tabId: string) => {
+    const view = tabViews.get(tabId)
+    if (view && view.webContents.canGoBack()) {
+      view.webContents.goBack()
+    }
+  })
+
+  ipcMain.on('tab-go-forward', (_, tabId: string) => {
+    const view = tabViews.get(tabId)
+    if (view && view.webContents.canGoForward()) {
+      view.webContents.goForward()
+    }
+  })
+
+  ipcMain.on('tab-reload', (_, tabId: string) => {
+    const view = tabViews.get(tabId)
+    if (view) {
+      view.webContents.reload()
+    }
+  })
   // Fix Google Login by stripping Electron/kairo branding natively, but keeping the exact matching Chromium version
   // This allows the native sec-ch-ua headers to pass Google's anti-bot checks perfectly!
   const defaultSession = require('electron').session.defaultSession
   const nativeUA = defaultSession.getUserAgent()
   // Clean the UA but ensure it explicitly matches a standard Chrome format
-  const cleanUA = nativeUA.replace(/Electron\/[\d\.]+ /g, '').replace(/kairo\/[\d\.]+ /g, '').trim()
-  
+  const cleanUA = nativeUA
+    .replace(/Electron\/[\d\.]+ /g, '')
+    .replace(/kairo\/[\d\.]+ /g, '')
+    .trim()
+
   // Global User-Agent and Client Hints Spoofing
   // This attempts to defeat Google's embedded browser detection globally,
   // so the user might actually be able to log in natively without the popup.
   defaultSession.webRequest.onBeforeSendHeaders((details: any, callback: any) => {
     details.requestHeaders['User-Agent'] = cleanUA
     // Spoof Chromium Client Hints to hide Electron
-    details.requestHeaders['sec-ch-ua'] = '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"'
+    details.requestHeaders['sec-ch-ua'] =
+      '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"'
     details.requestHeaders['sec-ch-ua-mobile'] = '?0'
     details.requestHeaders['sec-ch-ua-platform'] = '"Windows"'
-    
+
     callback({ cancel: false, requestHeaders: details.requestHeaders })
   })
 
@@ -295,7 +406,10 @@ app.whenReady().then(() => {
 
       let chromePath = ''
       try {
-        chromePath = child_process.execSync('which google-chrome-stable || which google-chrome || which chromium').toString().trim()
+        chromePath = child_process
+          .execSync('which google-chrome-stable || which google-chrome || which chromium')
+          .toString()
+          .trim()
       } catch (e) {
         throw new Error('Could not find Google Chrome installed on your system.')
       }
@@ -325,41 +439,41 @@ app.whenReady().then(() => {
 
       const pages = await browser.pages()
       const page = pages.length > 0 ? pages[0] : await browser.newPage()
-      
+
       if (page.url() !== 'https://accounts.google.com/') {
         await page.goto('https://accounts.google.com')
       }
 
       return new Promise((resolve) => {
-        let isResolved = false;
-        let lastKnownCookies: any[] = [];
+        let isResolved = false
+        let lastKnownCookies: any[] = []
 
         // Watch for manual closure
         browser.on('disconnected', async () => {
           if (!isResolved) {
-            isResolved = true;
-            clearInterval(checkInterval);
-            
-            console.log('Browser closed. Injecting final cookies into Kairo...');
-            
+            isResolved = true
+            clearInterval(checkInterval)
+
+            console.log('Browser closed. Injecting final cookies into Kairo...')
+
             // Wipe existing Google cookies in Kairo to prevent conflicts with old sessions
             try {
-              const kairoCookies = await defaultSession.cookies.get({});
+              const kairoCookies = await defaultSession.cookies.get({})
               for (const c of kairoCookies) {
                 if (c.domain.includes('google.com') || c.domain.includes('youtube.com')) {
-                   const cUrl = `http${c.secure ? 's' : ''}://${c.domain.startsWith('.') ? c.domain.substring(1) : c.domain}${c.path}`;
-                   await defaultSession.cookies.remove(cUrl, c.name).catch(()=>{});
+                  const cUrl = `http${c.secure ? 's' : ''}://${c.domain.startsWith('.') ? c.domain.substring(1) : c.domain}${c.path}`
+                  await defaultSession.cookies.remove(cUrl, c.name).catch(() => {})
                 }
               }
             } catch (e) {
-              console.error('Error clearing old cookies:', e);
+              console.error('Error clearing old cookies:', e)
             }
 
             // Inject the final perfectly-synced multi-account cookies
-            let injectedCount = 0;
+            let injectedCount = 0
             for (const cookie of lastKnownCookies) {
               const url = `http${cookie.secure ? 's' : ''}://${cookie.domain.startsWith('.') ? cookie.domain.substring(1) : cookie.domain}${cookie.path}`
-              
+
               let sameSite: 'unspecified' | 'no_restriction' | 'lax' | 'strict' = 'unspecified'
               if (cookie.sameSite === 'None') sameSite = 'no_restriction'
               else if (cookie.sameSite === 'Strict') sameSite = 'strict'
@@ -379,12 +493,12 @@ app.whenReady().then(() => {
                 if (cookie.domain.startsWith('.')) {
                   cookieDetails.domain = cookie.domain
                 }
-                
+
                 await defaultSession.cookies.set(cookieDetails)
-                injectedCount++;
+                injectedCount++
               } catch (e) {}
             }
-            
+
             console.log(`Successfully injected ${injectedCount} final cookies!`)
             resolve({ success: true, count: injectedCount })
           }
@@ -393,13 +507,13 @@ app.whenReady().then(() => {
         const checkInterval = setInterval(async () => {
           try {
             const pages = await browser.pages()
-            if (pages.length === 0) return;
+            if (pages.length === 0) return
             const currentPage = pages[0]
-            
-            const client = await currentPage.target().createCDPSession();
-            const { cookies: allCookies } = await client.send('Network.getAllCookies');
-            lastKnownCookies = allCookies;
-          } catch (e) { }
+
+            const client = await currentPage.target().createCDPSession()
+            const { cookies: allCookies } = await client.send('Network.getAllCookies')
+            lastKnownCookies = allCookies
+          } catch (e) {}
         }, 1000)
       })
     } catch (err: any) {
@@ -422,12 +536,10 @@ app.whenReady().then(() => {
     })
   })
 
-
-
   ipcMain.on('clear-cache', async () => {
     const session = require('electron').session.defaultSession
     await session.clearCache()
-    // Only clear memory/disk caches. Do not clear cookies or indexdb, 
+    // Only clear memory/disk caches. Do not clear cookies or indexdb,
     // as that would forcibly log the user out of all websites.
     await session.clearStorageData({ storages: ['caches'] })
   })
@@ -440,22 +552,25 @@ app.whenReady().then(() => {
         origin,
         storages: ['serviceworkers', 'indexdb', 'localstorage', 'cookies', 'caches']
       })
-      
-      let urlObj;
-      try { urlObj = new URL(origin) } catch(e) {}
-      
+
+      let urlObj
+      try {
+        urlObj = new URL(origin)
+      } catch (e) {}
+
       if (urlObj) {
         const hostname = urlObj.hostname
         const baseDomain = hostname.startsWith('www.') ? hostname.substring(4) : hostname
-        
+
         const allCookies = await session.cookies.get({})
         for (const cookie of allCookies) {
           if (cookie.domain.includes(baseDomain)) {
-            const cookieUrl = 'http' + (cookie.secure ? 's' : '') + '://' + cookie.domain + cookie.path
+            const cookieUrl =
+              'http' + (cookie.secure ? 's' : '') + '://' + cookie.domain + cookie.path
             await session.cookies.remove(cookieUrl, cookie.name)
           }
         }
-        
+
         await session.clearStorageData({
           origin: `https://${baseDomain}`,
           storages: ['serviceworkers', 'indexdb', 'localstorage', 'caches']
@@ -469,7 +584,7 @@ app.whenReady().then(() => {
 
   // --- WebContentsView Manager ---
   // IPC setup for Browser UI
-  
+
   ipcMain.handle('get-fullscreen-state', () => {
     const wins = BrowserWindow.getAllWindows()
     if (wins.length > 0) {
@@ -477,57 +592,74 @@ app.whenReady().then(() => {
     }
     return false
   })
-  
-
 
   ipcMain.on('context-menu-action', (_, action: string, tabId: string, params: any) => {
-    const view = tabViews.get(tabId)
-    if (!view) return
+    const mainWindow = BrowserWindow.getAllWindows()[0]
+    let targetContents: Electron.WebContents | undefined
+    if (tabId === 'dashboard' && mainWindow) {
+      targetContents = mainWindow.webContents
+    } else {
+      const view = tabViews.get(tabId)
+      targetContents = view?.webContents
+    }
+    if (!targetContents) return
     const { clipboard } = require('electron')
-    
+
     switch (action) {
       // --- LINK ACTIONS ---
       case 'open-link':
-        view.webContents.loadURL(params.linkURL)
+        targetContents.loadURL(params.linkURL)
         break
       case 'open-link-new-tab':
       case 'open-link-bg-tab':
       case 'open-link-new-window':
-        BrowserWindow.getAllWindows()[0]?.webContents.send('open-in-new-tab', params.linkURL)
+        mainWindow?.webContents.send('open-in-new-tab', params.linkURL)
+        break
+      case 'open-link-new-space':
+        mainWindow?.webContents.send('open-in-space', { url: params.linkURL, spaceId: 'new' })
         break
       case 'open-link-in-space':
-        BrowserWindow.getAllWindows()[0]?.webContents.send('open-in-space', { url: params.linkURL, spaceId: params.spaceId })
+        mainWindow?.webContents.send('open-in-space', {
+          url: params.linkURL,
+          spaceId: params.spaceId
+        })
         break
       case 'copy-link':
         clipboard.writeText(params.linkURL)
         break
+      case 'copy-link-text':
+        clipboard.writeText(params.linkText)
+        break
       case 'bookmark-link':
-        BrowserWindow.getAllWindows()[0]?.webContents.send('bookmark-url', params.linkURL)
+        mainWindow?.webContents.send('bookmark-url', params.linkURL)
         break
       case 'save-link':
-        view.webContents.downloadURL(params.linkURL)
+        targetContents.downloadURL(params.linkURL)
         break
 
       // --- IMAGE ACTIONS ---
       case 'open-image-new-tab':
-        BrowserWindow.getAllWindows()[0]?.webContents.send('open-in-new-tab', params.srcURL)
+        mainWindow?.webContents.send('open-in-new-tab', params.srcURL)
         break
       case 'copy-image-address':
         clipboard.writeText(params.srcURL)
         break
       case 'copy-image':
-        view.webContents.copyImageAt(params.x, params.y)
+        targetContents.copyImageAt(params.x, params.y)
         break
       case 'save-image':
-        view.webContents.downloadURL(params.srcURL)
+        targetContents.downloadURL(params.srcURL)
         break
       case 'search-image':
-        BrowserWindow.getAllWindows()[0]?.webContents.send('open-in-new-tab', `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(params.srcURL)}`)
+        mainWindow?.webContents.send(
+          'open-in-new-tab',
+          `https://lens.google.com/uploadbyurl?url=${encodeURIComponent(params.srcURL)}`
+        )
         break
 
       // --- VIDEO ACTIONS ---
       case 'video-play-pause':
-        view.webContents.executeJavaScript(`
+        targetContents.executeJavaScript(`
           (function() {
             let el = document.elementFromPoint(${params.x}, ${params.y});
             if (el && el.tagName === 'VIDEO') {
@@ -537,7 +669,7 @@ app.whenReady().then(() => {
         `)
         break
       case 'video-mute':
-        view.webContents.executeJavaScript(`
+        targetContents.executeJavaScript(`
           (function() {
             let el = document.elementFromPoint(${params.x}, ${params.y});
             if (el && el.tagName === 'VIDEO') { el.muted = !el.muted; }
@@ -545,7 +677,7 @@ app.whenReady().then(() => {
         `)
         break
       case 'video-loop':
-        view.webContents.executeJavaScript(`
+        targetContents.executeJavaScript(`
           (function() {
             let el = document.elementFromPoint(${params.x}, ${params.y});
             if (el && el.tagName === 'VIDEO') { el.loop = !el.loop; }
@@ -553,7 +685,7 @@ app.whenReady().then(() => {
         `)
         break
       case 'video-pip':
-        view.webContents.executeJavaScript(`
+        targetContents.executeJavaScript(`
           (function() {
             let el = document.elementFromPoint(${params.x}, ${params.y});
             if (el && el.tagName === 'VIDEO') {
@@ -567,83 +699,111 @@ app.whenReady().then(() => {
         clipboard.writeText(params.srcURL)
         break
       case 'save-video':
-        view.webContents.downloadURL(params.srcURL)
+        targetContents.downloadURL(params.srcURL)
         break
       case 'open-video-new-tab':
-        BrowserWindow.getAllWindows()[0]?.webContents.send('open-in-new-tab', params.srcURL)
+        mainWindow?.webContents.send('open-in-new-tab', params.srcURL)
         break
 
       // --- TEXT ACTIONS ---
       case 'copy-text':
-        view.webContents.copy()
+        targetContents.copy()
         break
       case 'cut-text':
-        view.webContents.cut()
+        targetContents.cut()
         break
       case 'paste-text':
-        view.webContents.paste()
+        targetContents.paste()
+        break
+      case 'select-all':
+        targetContents.selectAll()
+        break
+      case 'undo':
+        targetContents.undo()
+        break
+      case 'redo':
+        targetContents.redo()
         break
       case 'search-web':
-        BrowserWindow.getAllWindows()[0]?.webContents.send('open-in-new-tab', `https://google.com/search?q=${encodeURIComponent(params.selectionText)}`)
+        mainWindow?.webContents.send(
+          'open-in-new-tab',
+          `https://google.com/search?q=${encodeURIComponent(params.selectionText)}`
+        )
         break
       case 'ask-ai':
-        BrowserWindow.getAllWindows()[0]?.webContents.send('open-in-new-tab', `https://chatgpt.com/?q=${encodeURIComponent(params.selectionText)}`)
+        mainWindow?.webContents.send(
+          'open-in-new-tab',
+          `https://chatgpt.com/?q=${encodeURIComponent(params.selectionText)}`
+        )
         break
       case 'translate-text':
-        BrowserWindow.getAllWindows()[0]?.webContents.send('open-in-new-tab', `https://translate.google.com/?text=${encodeURIComponent(params.selectionText)}`)
+        mainWindow?.webContents.send(
+          'open-in-new-tab',
+          `https://translate.google.com/?text=${encodeURIComponent(params.selectionText)}`
+        )
         break
       case 'open-text-new-tab':
         // Try to treat selection as URL if it matches, else search
         const isUrl = /^https?:\/\//i.test(params.selectionText)
-        BrowserWindow.getAllWindows()[0]?.webContents.send('open-in-new-tab', isUrl ? params.selectionText : `https://google.com/search?q=${encodeURIComponent(params.selectionText)}`)
+        mainWindow?.webContents.send(
+          'open-in-new-tab',
+          isUrl
+            ? params.selectionText
+            : `https://google.com/search?q=${encodeURIComponent(params.selectionText)}`
+        )
         break
       case 'save-to-notes':
-        BrowserWindow.getAllWindows()[0]?.webContents.send('save-to-notes', params.selectionText)
+        mainWindow?.webContents.send('save-to-notes', params.selectionText)
         break
 
       // --- PAGE ACTIONS ---
       case 'back':
-        if (view.webContents.canGoBack()) view.webContents.goBack()
+        if (targetContents.canGoBack()) targetContents.goBack()
         break
       case 'forward':
-        if (view.webContents.canGoForward()) view.webContents.goForward()
+        if (targetContents.canGoForward()) targetContents.goForward()
         break
       case 'reload':
-        view.webContents.reload()
+        targetContents.reload()
         break
       case 'duplicate-tab':
-        BrowserWindow.getAllWindows()[0]?.webContents.send('open-in-new-tab', params.pageURL)
+        mainWindow?.webContents.send('open-in-new-tab', params.pageURL)
         break
       case 'bookmark-page':
-        BrowserWindow.getAllWindows()[0]?.webContents.send('bookmark-url', params.pageURL)
+        mainWindow?.webContents.send('bookmark-url', params.pageURL)
         break
       case 'copy-page-url':
         clipboard.writeText(params.pageURL)
         break
       case 'save-page':
-        view.webContents.downloadURL(params.pageURL)
+        targetContents.downloadURL(params.pageURL)
         break
       case 'add-page-to-folder':
-        BrowserWindow.getAllWindows()[0]?.webContents.send('add-tab-to-folder', { url: params.pageURL, folderId: params.folderId })
+        mainWindow?.webContents.send('add-tab-to-folder', {
+          url: params.pageURL,
+          folderId: params.folderId
+        })
         break
       case 'view-source':
-        BrowserWindow.getAllWindows()[0]?.webContents.send('open-in-new-tab', `view-source:${params.pageURL}`)
+        mainWindow?.webContents.send('open-in-new-tab', `view-source:${params.pageURL}`)
         break
       case 'dev-tools':
-        if (view.webContents.isDevToolsOpened()) {
-          view.webContents.closeDevTools()
+        if (targetContents.isDevToolsOpened()) {
+          targetContents.closeDevTools()
         } else {
-          view.webContents.openDevTools({ mode: 'right' })
+          targetContents.openDevTools({ mode: 'right' })
         }
         break
       case 'inspect':
-        view.webContents.inspectElement(params.x, params.y)
+        targetContents.inspectElement(params.x, params.y)
         break
     }
   })
-  
+
   ipcMain.on('create-tab-view', (event, tabId: string, url: string) => {
-    if (tabViews.has(tabId)) return;
+    if (tabViews.has(tabId)) return
+
+    const { session } = require('electron')
     const view = new WebContentsView({
       webPreferences: {
         sandbox: true,
@@ -652,12 +812,19 @@ app.whenReady().then(() => {
         backgroundThrottling: true,
         enableWebSQL: false,
         spellcheck: false,
-        navigateOnDragDrop: false
+        navigateOnDragDrop: false,
+        partition: 'persist:main', // Use persistent session partition
+        session: session.defaultSession, // Explicitly use the default session
+        offscreen: false
       }
     })
+
+    // Set background color to prevent transparency bleeding - use white to make it obvious if visible
+    view.setBackgroundColor('#ffffff')
+
     view.webContents.userAgent = app.userAgentFallback
     view.webContents.setMaxListeners(30) // Suppress false-positive max-listeners warning from Electron internals
-    
+
     view.webContents.on('did-navigate', (_e, navUrl) => {
       event.sender.send('tab-navigated', tabId, navUrl)
     })
@@ -667,15 +834,25 @@ app.whenReady().then(() => {
     view.webContents.on('page-title-updated', (_e, title) => {
       event.sender.send('tab-title-updated', tabId, title)
     })
-    view.webContents.on('did-start-loading', () => {
-      event.sender.send('tab-loading', tabId, true)
+    view.webContents.on('did-start-navigation', (_e, _url, isInPlace, isMainFrame) => {
+      if (isMainFrame && !isInPlace) {
+        event.sender.send('tab-loading', tabId, true)
+      }
+    })
+    view.webContents.on('did-finish-load', () => {
+      event.sender.send('tab-loading', tabId, false)
+    })
+    view.webContents.on('did-fail-load', () => {
+      event.sender.send('tab-loading', tabId, false)
     })
     view.webContents.on('did-stop-loading', () => {
       event.sender.send('tab-loading', tabId, false)
+      HistoryManager.addVisit(view.webContents.getURL(), view.webContents.getTitle())
     })
     view.webContents.on('page-favicon-updated', (_e, favicons) => {
       if (favicons && favicons.length > 0) {
         event.sender.send('tab-favicon-updated', tabId, favicons[0])
+        HistoryManager.updateFavicon(view.webContents.getURL(), favicons[0])
       }
     })
     view.webContents.on('console-message', (_event, _level, message) => {
@@ -685,7 +862,43 @@ app.whenReady().then(() => {
         return
       }
     })
-    
+
+    // Polyfill for Linux Touchpad Gestures
+    view.webContents.on('dom-ready', () => {
+      view.webContents.executeJavaScript(`
+        (function() {
+          if (window._kairoSwipeInitialized) return;
+          window._kairoSwipeInitialized = true;
+          
+          let totalDeltaX = 0;
+          let swipeTimer = null;
+
+          window.addEventListener('wheel', (e) => {
+            if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+              const isAtLeftEdge = window.scrollX === 0;
+              const isAtRightEdge = window.scrollX >= (document.documentElement.scrollWidth - window.innerWidth - 1);
+              
+              if ((e.deltaX < -5 && isAtLeftEdge) || (e.deltaX > 5 && isAtRightEdge)) {
+                totalDeltaX += e.deltaX;
+                
+                if (Math.abs(totalDeltaX) > 250) {
+                  if (totalDeltaX < 0) window.history.back();
+                  else window.history.forward();
+                  totalDeltaX = 0;
+                }
+              } else {
+                totalDeltaX = 0;
+              }
+            } else {
+              totalDeltaX = 0;
+            }
+            
+            if (swipeTimer) clearTimeout(swipeTimer);
+            swipeTimer = setTimeout(() => { totalDeltaX = 0; }, 300);
+          }, { passive: true });
+        })();
+      `).catch(() => {})
+    })
     view.webContents.on('before-input-event', (e, input) => {
       if (input.type === 'keyDown') {
         if (input.key === 'F11') {
@@ -710,16 +923,177 @@ app.whenReady().then(() => {
     })
 
     view.webContents.on('context-menu', (_, params) => {
-      const viewBounds = view.getBounds()
-      
-      event.sender.send('show-web-context-menu', {
-        ...params,
-        tabId,
-        x: viewBounds.x + params.x,
-        y: viewBounds.y + params.y
-      })
+      const menu = new Menu()
+
+      // LINK OPTIONS
+      if (params.linkURL) {
+        menu.append(
+          new MenuItem({
+            label: 'Open Link in New Tab',
+            click: () => event.sender.send('open-in-new-tab', params.linkURL)
+          })
+        )
+        menu.append(
+          new MenuItem({
+            label: 'Open Link in New Space',
+            click: () => event.sender.send('open-in-space', { url: params.linkURL, spaceId: 'new' })
+          })
+        )
+        menu.append(new MenuItem({ type: 'separator' }))
+        menu.append(
+          new MenuItem({
+            label: 'Copy Link Address',
+            click: () => clipboard.writeText(params.linkURL)
+          })
+        )
+        menu.append(
+          new MenuItem({
+            label: 'Copy Link Text',
+            click: () => clipboard.writeText(params.linkText)
+          })
+        )
+        menu.append(new MenuItem({ type: 'separator' }))
+      }
+
+      // IMAGE OPTIONS
+      if (params.mediaType === 'image' || params.hasImageContents) {
+        menu.append(
+          new MenuItem({
+            label: 'Open Image in New Tab',
+            click: () => event.sender.send('open-in-new-tab', params.srcURL)
+          })
+        )
+        menu.append(
+          new MenuItem({
+            label: 'Save Image As',
+            click: () => view.webContents.downloadURL(params.srcURL)
+          })
+        )
+        menu.append(
+          new MenuItem({
+            label: 'Copy Image Address',
+            click: () => clipboard.writeText(params.srcURL)
+          })
+        )
+        menu.append(new MenuItem({ type: 'separator' }))
+      }
+
+      // VIDEO OPTIONS
+      if (params.mediaType === 'video' || params.mediaType === 'audio') {
+        menu.append(
+          new MenuItem({
+            label: 'Play / Pause',
+            click: () =>
+              view.webContents.executeJavaScript(
+                'document.querySelector("video, audio")?.paused ? document.querySelector("video, audio").play() : document.querySelector("video, audio").pause()'
+              )
+          })
+        )
+        menu.append(
+          new MenuItem({
+            label: 'Mute',
+            click: () =>
+              view.webContents.executeJavaScript(
+                'document.querySelector("video, audio").muted = !document.querySelector("video, audio").muted'
+              )
+          })
+        )
+        menu.append(
+          new MenuItem({
+            label: 'Open in New Tab',
+            click: () => event.sender.send('open-in-new-tab', params.srcURL)
+          })
+        )
+        menu.append(
+          new MenuItem({
+            label: 'Picture-in-Picture',
+            click: () =>
+              view.webContents.executeJavaScript(
+                'document.querySelector("video").requestPictureInPicture()'
+              )
+          })
+        )
+        menu.append(new MenuItem({ type: 'separator' }))
+      }
+
+      // SELECTION TEXT OPTIONS
+      if (params.selectionText && !params.isEditable) {
+        menu.append(new MenuItem({ label: 'Copy', role: 'copy' }))
+        menu.append(new MenuItem({ type: 'separator' }))
+        menu.append(
+          new MenuItem({
+            label: 'Search with Google',
+            click: () =>
+              event.sender.send(
+                'open-in-new-tab',
+                `https://google.com/search?q=${encodeURIComponent(params.selectionText)}`
+              )
+          })
+        )
+        menu.append(new MenuItem({ type: 'separator' }))
+      }
+
+      // INPUT FIELD OPTIONS
+      if (params.isEditable) {
+        menu.append(new MenuItem({ label: 'Undo', role: 'undo' }))
+        menu.append(new MenuItem({ label: 'Redo', role: 'redo' }))
+        menu.append(new MenuItem({ type: 'separator' }))
+        menu.append(new MenuItem({ label: 'Cut', role: 'cut' }))
+        menu.append(new MenuItem({ label: 'Copy', role: 'copy' }))
+        menu.append(new MenuItem({ label: 'Paste', role: 'paste' }))
+        menu.append(new MenuItem({ type: 'separator' }))
+        menu.append(new MenuItem({ label: 'Select All', role: 'selectAll' }))
+        menu.append(new MenuItem({ type: 'separator' }))
+      }
+
+      // PAGE DEFAULTS (When clicking empty space or as fallback)
+      if (
+        menu.items.length === 0 ||
+        (menu.items.length > 0 &&
+          menu.items[menu.items.length - 1].type === 'separator' &&
+          menu.items.length === 1)
+      ) {
+        menu.append(
+          new MenuItem({
+            label: 'Back',
+            click: () => {
+              if (view.webContents.canGoBack()) view.webContents.goBack()
+            }
+          })
+        )
+        menu.append(
+          new MenuItem({
+            label: 'Forward',
+            click: () => {
+              if (view.webContents.canGoForward()) view.webContents.goForward()
+            }
+          })
+        )
+        menu.append(new MenuItem({ label: 'Reload', click: () => view.webContents.reload() }))
+        menu.append(new MenuItem({ type: 'separator' }))
+        menu.append(
+          new MenuItem({
+            label: 'View Page Source',
+            click: () => event.sender.send('open-in-new-tab', `view-source:${params.pageURL}`)
+          })
+        )
+      }
+
+      // Clean trailing separators before adding final items
+      if (menu.items.length > 0 && menu.items[menu.items.length - 1].type !== 'separator') {
+        menu.append(new MenuItem({ type: 'separator' }))
+      }
+
+      menu.append(
+        new MenuItem({
+          label: 'Inspect Element',
+          click: () => view.webContents.inspectElement(params.x, params.y)
+        })
+      )
+
+      menu.popup({ window: mainWindow })
     })
-    
+
     view.webContents.on('enter-html-full-screen', () => {
       const win = BrowserWindow.fromWebContents(event.sender)
       if (win) win.setFullScreen(true)
@@ -741,7 +1115,7 @@ app.whenReady().then(() => {
       setTimeout(syncAfterExit, 150)
       setTimeout(syncAfterExit, 400)
     })
-    
+
     // Inject Scraper and Touchpad logic natively
     view.webContents.on('dom-ready', () => {
       view.webContents.insertCSS(`
@@ -750,7 +1124,7 @@ app.whenReady().then(() => {
         ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
       `)
-      
+
       const currentUrl = view.webContents.getURL()
       if (currentUrl.includes('music.youtube.com') || currentUrl.includes('open.spotify.com')) {
         view.webContents.executeJavaScript(`
@@ -881,7 +1255,7 @@ app.whenReady().then(() => {
         `)
       }
     })
-    
+
     // Pass standard Window Open Handler config for Popups
     view.webContents.setWindowOpenHandler((details) => {
       if (details.features) {
@@ -890,20 +1264,20 @@ app.whenReady().then(() => {
           overrideBrowserWindowOptions: {
             autoHideMenuBar: true,
             backgroundColor: '#09090b',
-            titleBarStyle: 'hiddenInset',
+            titleBarStyle: 'hiddenInset'
           }
         }
       }
-      
+
       if (details.disposition === 'new-window') {
         event.sender.send('open-in-split', details.url)
         return { action: 'deny' }
       }
-      
+
       event.sender.send('open-in-new-tab', details.url)
       return { action: 'deny' }
     })
-    
+
     view.webContents.loadURL(url)
     tabViews.set(tabId, view)
   })
@@ -941,13 +1315,14 @@ app.whenReady().then(() => {
             if (!win.contentView.children.includes(view)) {
               win.contentView.addChildView(view)
             }
-            // Electron requires integer bounds
-            view.setBounds({
-              x: Math.round(bounds.x),
-              y: Math.round(bounds.y),
-              width: Math.round(bounds.width),
-              height: Math.round(bounds.height)
-            })
+            // Electron requires integer bounds - ensure they're valid
+            const validBounds = {
+              x: Math.max(0, Math.round(bounds.x)),
+              y: Math.max(0, Math.round(bounds.y)),
+              width: Math.max(1, Math.round(bounds.width)),
+              height: Math.max(1, Math.round(bounds.height))
+            }
+            view.setBounds(validBounds)
             if (notifyResize) {
               notifyWebContentsResize(view)
             }
@@ -960,7 +1335,7 @@ app.whenReady().then(() => {
       }
     }
   )
-  
+
   // Also hook into web-contents-created to ensure we cover all popups
   app.on('web-contents-created', (_, contents) => {
     if (contents.getType() === 'window' || contents.getType() === 'webview') {

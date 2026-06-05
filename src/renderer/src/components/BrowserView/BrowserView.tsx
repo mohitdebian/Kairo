@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useBrowserStore } from '../../store/useBrowserStore'
 import { Dashboard } from '../Dashboard/Dashboard'
+import { HistoryPage } from '../History/HistoryPage'
 import { Moon } from 'lucide-react'
 import { SplitLayoutTree } from './SplitLayoutTree'
 
@@ -139,22 +140,11 @@ const BrowserTab = React.memo(({ tabId, activeTabIds, isSplitMode, showDashboard
     wakeTab(tabId)
   }, [tabId, wakeTab])
 
-  if (!tab || !tab.url || tab.url === 'dashboard') return null
+  if (!tab || !tab.url || tab.url === 'dashboard' || tab.url === 'kairo://history') return null
 
   // In split mode, portal into the leaf element; otherwise render in-place
   const inner = (
     <div className="w-full h-full relative overflow-hidden bg-transparent" style={{ pointerEvents: isVisible ? 'auto' : 'none' }}>
-      <AnimatePresence>
-        {tab.isLoading && (
-          <motion.div
-            initial={{ width: '0%', opacity: 1 }}
-            animate={{ width: '60%', opacity: 1 }}
-            exit={{ width: '100%', opacity: 0 }}
-            transition={{ duration: 1.5, ease: 'easeOut' }}
-            className="absolute top-0 left-0 h-[2px] bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)] z-50 rounded-r-full"
-          />
-        )}
-      </AnimatePresence>
       {isSleeping ? (
         <SleepingTabPlaceholder tab={tab} onWake={handleWake} />
       ) : (
@@ -186,17 +176,12 @@ export const BrowserView = () => {
   useEffect(() => {
     const handleNav = (_: any, tabId: string, url: string) => {
       useBrowserStore.getState().updateTabUrl(tabId, url);
-      useBrowserStore.getState().upsertHistory(url);
     };
     const handleTitle = (_: any, tabId: string, title: string) => {
       useBrowserStore.getState().updateTabTitle(tabId, title);
-      const tab = useBrowserStore.getState().tabs.find(t => t.id === tabId);
-      if (tab?.url) useBrowserStore.getState().upsertHistory(tab.url, title);
     };
     const handleFavicon = (_: any, tabId: string, favicon: string) => {
       useBrowserStore.getState().updateTabFavicon(tabId, favicon);
-      const tab = useBrowserStore.getState().tabs.find(t => t.id === tabId);
-      if (tab?.url) useBrowserStore.getState().upsertHistory(tab.url, undefined, favicon);
     };
     const handleLoading = (_: any, tabId: string, isLoading: boolean) => useBrowserStore.getState().updateTabLoading(tabId, isLoading);
     const handleMusic = (_: any, tabId: string, stateStr: string) => {
@@ -259,16 +244,20 @@ export const BrowserView = () => {
   // True split mode = layout has more than one tab pane (i.e. it's a split node, not just a single leaf)
   const isRealSplitMode = isSplitMode && layout?.type === 'split'
 
-  const isDashboardOnly = activeTabIds.length === 1 && (!activeTabUrls[0] || activeTabUrls[0] === 'dashboard')
+  const isDashboardOnly =
+    activeTabIds.length === 1 && (!activeTabUrls[0] || activeTabUrls[0] === 'dashboard')
   const showDashboard = activeTabIds.length === 0 || isDashboardOnly
 
+  const isHistoryOnly = activeTabUrls.length === 1 && activeTabUrls[0] === 'kairo://history'
+  const showHistory = isHistoryOnly
+
   return (
-    <div className="w-full h-full relative bg-bg-primary overflow-hidden">
+    <div className="w-full h-full relative bg-black overflow-hidden">
       {isRealSplitMode ? (
         // Split mode: SplitLayoutTree provides layout containers; BrowserTabs portal into leaves
         <>
           <SplitLayoutTree node={layout} />
-          {tabIds.map(tabId => {
+          {tabIds.map((tabId) => {
             const leafEl = document.getElementById(`split-leaf-${tabId}`)
             return (
               <BrowserTab
@@ -277,6 +266,7 @@ export const BrowserView = () => {
                 activeTabIds={activeTabIds}
                 isSplitMode={true}
                 showDashboard={showDashboard}
+                showHistory={showHistory}
                 leafEl={leafEl}
               />
             )
@@ -285,13 +275,14 @@ export const BrowserView = () => {
       ) : (
         // Single-tab mode: render the active tab directly, filling the whole content area
         <>
-          {activeTabIds.map(tabId => (
+          {tabIds.map((tabId) => (
             <BrowserTab
               key={tabId}
               tabId={tabId}
               activeTabIds={activeTabIds}
               isSplitMode={false}
               showDashboard={showDashboard}
+              showHistory={showHistory}
               leafEl={null}
             />
           ))}
@@ -302,6 +293,13 @@ export const BrowserView = () => {
       {showDashboard && (
         <div className="absolute inset-0 z-40 bg-bg-primary">
           <Dashboard />
+        </div>
+      )}
+
+      {/* History Overlay */}
+      {showHistory && (
+        <div className="absolute inset-0 z-40 bg-bg-primary">
+          <HistoryPage />
         </div>
       )}
     </div>

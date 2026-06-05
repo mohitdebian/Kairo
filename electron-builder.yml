@@ -33,8 +33,10 @@ linux:
     - AppImage
     - snap
     - deb
-  maintainer: electronjs.org
-  category: Utility
+  maintainer: mohitdebian
+  category: Network
+  executableArgs:
+    - '--no-sandbox'
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false

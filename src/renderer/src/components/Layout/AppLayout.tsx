@@ -9,17 +9,28 @@ import { ShieldCheck, Minus, Square, X } from 'lucide-react'
 import { cn } from '../../utils/cn'
 import { useEffect } from 'react'
 
-
 const WindowControls = () => {
   return (
-    <div className="absolute top-0 right-0 h-full flex items-center no-drag z-[60] pr-2">
-      <button onClick={() => window.electron.ipcRenderer.send('window-minimize')} className="w-11 h-full flex items-center justify-center text-white/40 hover:bg-white/10 hover:text-white transition-colors">
+    <div
+      className="absolute top-0 right-0 h-full flex items-center no-drag z-[60] pr-2 bg-[var(--color-bg-primary)]"
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <button
+        onClick={() => window.electron.ipcRenderer.send('window-minimize')}
+        className="w-11 h-full flex items-center justify-center text-white/40 hover:bg-white/10 hover:text-white transition-colors"
+      >
         <Minus size={14} />
       </button>
-      <button onClick={() => window.electron.ipcRenderer.send('window-maximize')} className="w-11 h-full flex items-center justify-center text-white/40 hover:bg-white/10 hover:text-white transition-colors">
+      <button
+        onClick={() => window.electron.ipcRenderer.send('window-maximize')}
+        className="w-11 h-full flex items-center justify-center text-white/40 hover:bg-white/10 hover:text-white transition-colors"
+      >
         <Square size={12} />
       </button>
-      <button onClick={() => window.electron.ipcRenderer.send('window-close')} className="w-12 h-full flex items-center justify-center text-white/40 hover:bg-red-500 hover:text-white transition-colors rounded-xl">
+      <button
+        onClick={() => window.electron.ipcRenderer.send('window-close')}
+        className="w-12 h-full flex items-center justify-center text-white/40 hover:bg-red-500 hover:text-white transition-colors"
+      >
         <X size={16} />
       </button>
     </div>
@@ -28,62 +39,114 @@ const WindowControls = () => {
 
 export const AppLayout = () => {
   const activeTabId = useBrowserStore((state) => state.activeTabIds[0])
-  const activeTabTitle = useBrowserStore((state) => state.tabs.find(t => t.id === activeTabId)?.title)
-  const activeTabUrl = useBrowserStore((state) => state.tabs.find(t => t.id === activeTabId)?.url)
+  const activeTabTitle = useBrowserStore(
+    (state) => state.tabs.find((t) => t.id === activeTabId)?.title
+  )
+  const activeTabUrl = useBrowserStore((state) => state.tabs.find((t) => t.id === activeTabId)?.url)
   const isFullscreen = useBrowserStore((state) => state.isFullscreen)
-  
-
 
   useEffect(() => {
-    const handleFullscreenState = (_: any, state: boolean) => {
-      useBrowserStore.getState().setFullscreen(state)
+    const handleFullscreenState = (_event: any, isFullscreen: boolean) => {
+      useBrowserStore.getState().setFullscreen(isFullscreen)
     }
-    const handleNewTab = () => {
-      const store = useBrowserStore.getState()
-      store.toggleCommandPalette(true)
+    const handleNewTab = (_event: any) => {
+      useBrowserStore.getState().addTab({ title: 'New Tab', url: 'dashboard', workspaceId: useBrowserStore.getState().activeWorkspaceId })
     }
-    
+
     const handleNewTabDOM = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 't') {
         e.preventDefault()
-        handleNewTab()
+        handleNewTab(null)
       }
-      
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') {
+        e.preventDefault()
+        useBrowserStore.getState().addTab({ title: 'History', url: 'kairo://history', workspaceId: useBrowserStore.getState().activeWorkspaceId })
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'j') {
+        e.preventDefault()
+        useBrowserStore.getState().toggleDownloads()
+      }
+
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'l') {
         e.preventDefault()
         useBrowserStore.getState().toggleCommandPalette(true)
       }
-      
+
       if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
         e.preventDefault()
         useBrowserStore.getState().splitCurrentPane('horizontal')
       }
     }
-    const handleOpenInSpace = (_: any, data: { url: string, spaceId: string }) => {
-      useBrowserStore.getState().addTab({ title: 'New Tab', url: data.url, workspaceId: data.spaceId })
+    const handleOpenInSpace = (_event: any, data: { url: string; spaceId: string }) => {
+      console.log('handleOpenInSpace received:', data)
+      const store = useBrowserStore.getState()
+      let targetSpaceId = data.spaceId
+      if (targetSpaceId === 'new') {
+        targetSpaceId = `w${Date.now()}`
+        store.addWorkspace({ id: targetSpaceId, name: 'New Space', icon: 'Layout', color: '#6366f1' })
+        store.setActiveWorkspace(targetSpaceId)
+      }
+      store.addTab({ title: 'New Tab', url: data.url, workspaceId: targetSpaceId })
     }
 
-    const handleBookmarkUrl = (_: any, url: string) => {
+    const handleBookmarkUrl = (_event: any, url: string) => {
       console.log('Bookmark added:', url)
       alert(`Bookmarked: ${url}`)
     }
 
-    const handleAddTabToFolder = (_: any, data: { url: string, folderId: string }) => {
+    const handleAddTabToFolder = (_event: any, data: { url: string; folderId: string }) => {
       const store = useBrowserStore.getState()
-      const folder = store.folders.find(f => f.id === data.folderId)
+      const folder = store.folders.find((f) => f.id === data.folderId)
       if (folder) {
-        store.addTab({ title: 'New Tab', url: data.url, workspaceId: folder.workspaceId, folderId: data.folderId })
+        store.addTab({
+          title: 'New Tab',
+          url: data.url,
+          workspaceId: folder.workspaceId,
+          folderId: data.folderId
+        })
       }
     }
 
-    const handleOpenInSplit = (_: any, url: string) => {
+    const handleOpenInSplit = (_event: any, url: string) => {
       const store = useBrowserStore.getState()
       store.splitCurrentPane('horizontal', url)
     }
 
-    const handleSaveToNotes = (_: any, text: string) => {
-      console.log('Saved to notes:', text)
-      alert(`Saved to Notes:\n\n${text.length > 50 ? text.substring(0, 50) + '...' : text}`)
+    const handleSaveToNotes = (_event: any, data: { text: string; sourceUrl: string }) => {
+      console.log('Saved to notes:', data.text)
+      alert(
+        `Saved to Notes:\n\n${data.text.length > 50 ? data.text.substring(0, 50) + '...' : data.text}`
+      )
+    }
+
+    const handleDownloadStarted = (_event: any, item: any) => {
+      useBrowserStore.getState().addDownload({
+        id: item.id,
+        url: item.url,
+        filename: item.filename,
+        state: 'progressing',
+        receivedBytes: 0,
+        totalBytes: item.totalBytes,
+        startTime: Date.now()
+      })
+      if (!useBrowserStore.getState().isDownloadsOpen) {
+        useBrowserStore.getState().toggleDownloads()
+      }
+    }
+
+    const handleDownloadProgress = (_event: any, data: any) => {
+      useBrowserStore.getState().updateDownload(data.id, {
+        receivedBytes: data.receivedBytes,
+        totalBytes: data.totalBytes
+      })
+    }
+
+    const handleDownloadComplete = (_event: any, data: any) => {
+      useBrowserStore.getState().updateDownload(data.id, {
+        state: data.state
+      })
     }
 
     window.addEventListener('keydown', handleNewTabDOM)
@@ -94,17 +157,20 @@ export const AppLayout = () => {
     window.electron.ipcRenderer.on('add-tab-to-folder', handleAddTabToFolder)
     window.electron.ipcRenderer.on('open-in-split', handleOpenInSplit)
     window.electron.ipcRenderer.on('save-to-notes', handleSaveToNotes)
+    window.electron.ipcRenderer.on('download-started', handleDownloadStarted)
+    window.electron.ipcRenderer.on('download-progress', handleDownloadProgress)
+    window.electron.ipcRenderer.on('download-complete', handleDownloadComplete)
 
     window.electron.ipcRenderer.send('sync-context-menu-state', {
       workspaces: useBrowserStore.getState().workspaces,
-      folders: useBrowserStore.getState().folders,
+      folders: useBrowserStore.getState().folders
     })
-    
+
     const unsubscribe = useBrowserStore.subscribe((state, prevState) => {
       if (state.workspaces !== prevState.workspaces || state.folders !== prevState.folders) {
         window.electron.ipcRenderer.send('sync-context-menu-state', {
           workspaces: state.workspaces,
-          folders: state.folders,
+          folders: state.folders
         })
       }
     })
@@ -119,44 +185,79 @@ export const AppLayout = () => {
       window.electron.ipcRenderer.removeAllListeners('add-tab-to-folder')
       window.electron.ipcRenderer.removeAllListeners('open-in-split')
       window.electron.ipcRenderer.removeAllListeners('save-to-notes')
+      window.electron.ipcRenderer.removeAllListeners('download-started')
+      window.electron.ipcRenderer.removeAllListeners('download-progress')
+      window.electron.ipcRenderer.removeAllListeners('download-complete')
     }
   }, [])
 
   return (
-    <div className={cn("absolute inset-0 flex flex-col bg-[#09090b] overflow-hidden", !isFullscreen && "rounded-2xl border border-white/20 shadow-2xl")}>
-      <div className="flex-1 flex overflow-hidden relative">
+    <div className="absolute inset-0 flex flex-col bg-black overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative bg-black">
         {!isFullscreen && <Sidebar />}
         <AIGroupPanel />
-        <main className={cn(
-            "relative overflow-hidden bg-bg-primary flex flex-col transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]",
-            isFullscreen ? "fixed inset-0 z-[99999] bg-black" : "flex-1 rounded-tl-xl border-t border-l border-white/[0.03] shadow-2xl"
-          )}>
-            {!isFullscreen && (
-              <div className="h-8 w-full shrink-0 drag-region flex items-center justify-center border-b border-white/[0.02] relative z-50 bg-bg-primary">
-                {activeTabId && activeTabUrl && (
-                  <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white/[0.02] border border-white/[0.05] shadow-sm max-w-[400px] backdrop-blur-md">
-                    {activeTabUrl.startsWith('https://') && <ShieldCheck size={12} className="text-emerald-500/80" />}
-                    <span className="text-[11px] font-medium text-white/60 truncate tracking-wide">
-                      {activeTabTitle || new URL(activeTabUrl).hostname || 'Loading...'}
-                    </span>
-                  </div>
-                )}
-                <WindowControls />
+        <main
+          className={cn(
+            'relative overflow-hidden bg-bg-primary flex flex-col transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]',
+            isFullscreen
+              ? 'fixed inset-0 z-[99999] bg-black'
+              : 'flex-1 border-t border-l border-white/[0.03] shadow-2xl'
+          )}
+        >
+          {!isFullscreen && (
+            <div className="h-8 w-full shrink-0 drag-region flex items-center justify-between px-3 border-b border-white/[0.02] relative z-50 bg-bg-primary">
+              <div className="flex items-center gap-1 no-drag">
+                <button
+                  onClick={() => window.electron.ipcRenderer.send('tab-go-back', activeTabId)}
+                  className="w-6 h-6 rounded flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                <button
+                  onClick={() => window.electron.ipcRenderer.send('tab-go-forward', activeTabId)}
+                  className="w-6 h-6 rounded flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+                <button
+                  onClick={() => window.electron.ipcRenderer.send('tab-reload', activeTabId)}
+                  className="w-6 h-6 rounded flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors mr-2"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                </button>
               </div>
-            )}
-            <div className={cn(
-              "flex-1 relative overflow-hidden",
-              !isFullscreen && "pr-2 pb-2"
-            )}>
-              <div className={cn("w-full h-full relative overflow-hidden", !isFullscreen && "rounded-xl border border-white/10")}>
-                <BrowserView />
-              </div>
+
+              {activeTabId && activeTabUrl && (
+                <div 
+                  className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1 bg-white/[0.02] border border-white/[0.05] shadow-sm max-w-[400px] rounded-md cursor-pointer no-drag hover:bg-white/[0.04] transition-colors"
+                  onClick={() => useBrowserStore.getState().toggleCommandPalette(true)}
+                >
+                  {activeTabUrl.startsWith('https://') && (
+                    <ShieldCheck size={12} className="text-emerald-500/80" />
+                  )}
+                  <span className="text-[11px] font-medium text-white/60 truncate tracking-wide">
+                    {activeTabTitle || new URL(activeTabUrl).hostname || 'Loading...'}
+                  </span>
+                </div>
+              )}
+              <WindowControls />
             </div>
-          </main>
-          {!isFullscreen && <DevPanel />}
-        </div>
-        <CommandPalette />
-        <SettingsModal />
+          )}
+          <div className={cn('flex-1 relative overflow-hidden', !isFullscreen && 'pr-2 pb-2')}>
+            <div
+              className={cn(
+                'w-full h-full relative overflow-hidden bg-black',
+                !isFullscreen && 'border border-white/10'
+              )}
+            >
+              <BrowserView />
+            </div>
+          </div>
+        </main>
+        {!isFullscreen && <DevPanel />}
       </div>
+      <CommandPalette />
+      <SettingsModal />
+    </div>
   )
 }

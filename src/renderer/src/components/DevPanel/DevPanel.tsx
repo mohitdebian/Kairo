@@ -10,13 +10,15 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 }
 
 export const DevPanel = () => {
-  const isRightPanelOpen = useBrowserStore(state => state.isRightPanelOpen)
-  const toggleRightPanel = useBrowserStore(state => state.toggleRightPanel)
-  const activeWorkspaceId = useBrowserStore(state => state.activeWorkspaceId)
-  const workspaceNotes = useBrowserStore(state => state.workspaceNotes)
-  const updateWorkspaceNote = useBrowserStore(state => state.updateWorkspaceNote)
-  const activeTabId = useBrowserStore(state => state.activeTabIds[0])
-  const activeBrowserTabUrl = useBrowserStore(state => state.tabs.find(t => t.id === activeTabId)?.url)
+  const isRightPanelOpen = useBrowserStore((state) => state.isRightPanelOpen)
+  const toggleRightPanel = useBrowserStore((state) => state.toggleRightPanel)
+  const activeWorkspaceId = useBrowserStore((state) => state.activeWorkspaceId)
+  const workspaceNotes = useBrowserStore((state) => state.workspaceNotes)
+  const updateWorkspaceNote = useBrowserStore((state) => state.updateWorkspaceNote)
+  const activeTabId = useBrowserStore((state) => state.activeTabIds[0])
+  const activeBrowserTabUrl = useBrowserStore(
+    (state) => state.tabs.find((t) => t.id === activeTabId)?.url
+  )
 
   const [activeTab, setActiveTab] = useState<'notes' | 'ai'>('notes')
   const [isSummarizing, setIsSummarizing] = useState(false)
@@ -29,7 +31,9 @@ export const DevPanel = () => {
     setSummary(null)
     // Simulate AI fetch
     setTimeout(() => {
-      setSummary(`This page (${activeBrowserTabUrl || 'Dashboard'}) appears to be a modern web application interface. It utilizes a highly responsive architecture with split-view capabilities, hardware-accelerated micro-interactions, and a strict minimal aesthetic. The primary focus is on reducing clutter and providing developer-centric quick actions.`)
+      setSummary(
+        `This page (${activeBrowserTabUrl || 'Dashboard'}) appears to be a modern web application interface. It utilizes a highly responsive architecture with split-view capabilities, hardware-accelerated micro-interactions, and a strict minimal aesthetic. The primary focus is on reducing clutter and providing developer-centric quick actions.`
+      )
       setIsSummarizing(false)
     }, 1500)
   }
@@ -47,20 +51,33 @@ export const DevPanel = () => {
           {/* Header */}
           <div className="h-14 flex items-center justify-between px-4 border-b border-white/5">
             <div className="flex bg-white/5 p-1 rounded-lg">
-              <button 
+              <button
                 onClick={() => setActiveTab('notes')}
-                className={cn("px-3 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-2", activeTab === 'notes' ? "bg-[var(--color-accent)]/20 text-[var(--color-accent)]" : "text-text-secondary hover:text-text-primary")}
+                className={cn(
+                  'px-3 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-2',
+                  activeTab === 'notes'
+                    ? 'bg-[var(--color-accent)]/20 text-[var(--color-accent)]'
+                    : 'text-text-secondary hover:text-text-primary'
+                )}
               >
                 <FileText size={14} /> Notes
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab('ai')}
-                className={cn("px-3 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-2", activeTab === 'ai' ? "bg-[var(--color-accent)]/20 text-[var(--color-accent)]" : "text-text-secondary hover:text-text-primary")}
+                className={cn(
+                  'px-3 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-2',
+                  activeTab === 'ai'
+                    ? 'bg-[var(--color-accent)]/20 text-[var(--color-accent)]'
+                    : 'text-text-secondary hover:text-text-primary'
+                )}
               >
                 <Sparkles size={14} /> Insights
               </button>
             </div>
-            <button onClick={toggleRightPanel} className="p-1 rounded-md text-text-secondary hover:text-text-primary hover:bg-white/10 transition-colors">
+            <button
+              onClick={toggleRightPanel}
+              className="p-1 rounded-md text-text-secondary hover:text-text-primary hover:bg-white/10 transition-colors"
+            >
               <X size={16} />
             </button>
           </div>
@@ -68,7 +85,7 @@ export const DevPanel = () => {
           {/* Content */}
           <div className="flex-1 overflow-y-auto no-scrollbar p-4">
             {activeTab === 'notes' ? (
-              <textarea 
+              <textarea
                 value={currentNote}
                 onChange={(e) => updateWorkspaceNote(activeWorkspaceId, e.target.value)}
                 placeholder="Jot down notes for this workspace..."
@@ -77,22 +94,35 @@ export const DevPanel = () => {
             ) : (
               <div className="flex flex-col h-full">
                 {summary ? (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-sm text-text-primary leading-relaxed bg-white/5 p-4 rounded-xl border border-white/5 shadow-sm">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-sm text-text-primary leading-relaxed bg-white/5 p-4 rounded-xl border border-white/5 shadow-sm"
+                  >
                     <div className="flex items-center gap-2 mb-3 text-[var(--color-accent)]">
-                      <Bot size={16} /> <span className="font-medium text-xs tracking-wider uppercase">AI Summary</span>
+                      <Bot size={16} />{' '}
+                      <span className="font-medium text-xs tracking-wider uppercase">
+                        AI Summary
+                      </span>
                     </div>
                     {summary}
                   </motion.div>
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center text-center text-text-secondary">
                     <Sparkles size={32} className="mb-4 opacity-50" />
-                    <p className="text-sm mb-6 max-w-[200px]">Get a smart summary of the current page's content.</p>
-                    <button 
+                    <p className="text-sm mb-6 max-w-[200px]">
+                      Get a smart summary of the current page's content.
+                    </p>
+                    <button
                       onClick={handleSummarize}
                       disabled={isSummarizing}
                       className="px-4 py-2 rounded-lg bg-[var(--color-accent)] hover:bg-[var(--color-accent)]/90 text-white text-sm font-medium transition-colors flex items-center gap-2 shadow-md shadow-[var(--color-accent)]/20 disabled:opacity-50"
                     >
-                      {isSummarizing ? <Loader2 size={16} className="animate-spin" /> : "Summarize Page"}
+                      {isSummarizing ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        'Summarize Page'
+                      )}
                     </button>
                   </div>
                 )}

@@ -1,1 +1,7 @@
-{"time_last_update":1780561045,"weights":{"frec":0.7,"rece":0.3},"init_weights":{"frec":0.7,"rece":0.3},"norms":{"rece":null,"frec":null},"score_map":{}}
+{
+  "time_last_update": 1780561045,
+  "weights": { "frec": 0.7, "rece": 0.3 },
+  "init_weights": { "frec": 0.7, "rece": 0.3 },
+  "norms": { "rece": null, "frec": null },
+  "score_map": {}
+}

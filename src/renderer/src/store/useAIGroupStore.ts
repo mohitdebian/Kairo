@@ -77,7 +77,7 @@ export const useAIGroupStore = create<AIGroupState>()(
 
           // Find or create folder with matching name in workspace
           const existing = folders.find(
-            f => f.name === `${group.emoji} ${group.name}` && f.workspaceId === activeWorkspaceId
+            (f) => f.name === `${group.emoji} ${group.name}` && f.workspaceId === activeWorkspaceId
           )
 
           if (!existing) {
@@ -95,7 +95,7 @@ export const useAIGroupStore = create<AIGroupState>()(
             if (group.tabIds.length === 0) continue
             const folderName = `${group.emoji} ${group.name}`
             const folder = currentFolders.find(
-              f => f.name === folderName && f.workspaceId === activeWorkspaceId
+              (f) => f.name === folderName && f.workspaceId === activeWorkspaceId
             )
             if (!folder) continue
             for (const tabId of group.tabIds) {
@@ -108,51 +108,54 @@ export const useAIGroupStore = create<AIGroupState>()(
       },
 
       renameSuggestion: (id, name) =>
-        set(state => ({
-          suggestions: state.suggestions.map(g => g.id === id ? { ...g, name } : g),
+        set((state) => ({
+          suggestions: state.suggestions.map((g) => (g.id === id ? { ...g, name } : g))
         })),
 
       renameSuggestionEmoji: (id, emoji) =>
-        set(state => ({
-          suggestions: state.suggestions.map(g => g.id === id ? { ...g, emoji } : g),
+        set((state) => ({
+          suggestions: state.suggestions.map((g) => (g.id === id ? { ...g, emoji } : g))
         })),
 
       mergeSuggestions: (fromId, toId) =>
-        set(state => {
-          const from = state.suggestions.find(g => g.id === fromId)
-          const to = state.suggestions.find(g => g.id === toId)
+        set((state) => {
+          const from = state.suggestions.find((g) => g.id === fromId)
+          const to = state.suggestions.find((g) => g.id === toId)
           if (!from || !to) return state
           return {
             suggestions: state.suggestions
-              .map(g => g.id === toId ? { ...g, tabIds: [...g.tabIds, ...from.tabIds] } : g)
-              .filter(g => g.id !== fromId),
+              .map((g) => (g.id === toId ? { ...g, tabIds: [...g.tabIds, ...from.tabIds] } : g))
+              .filter((g) => g.id !== fromId)
           }
         }),
 
       moveTabBetweenSuggestions: (tabId, toGroupId) =>
-        set(state => ({
-          suggestions: state.suggestions.map(g => {
-            if (g.tabIds.includes(tabId)) return { ...g, tabIds: g.tabIds.filter(id => id !== tabId) }
-            if (g.id === toGroupId) return { ...g, tabIds: [...g.tabIds, tabId] }
-            return g
-          }).filter(g => g.tabIds.length > 0),
+        set((state) => ({
+          suggestions: state.suggestions
+            .map((g) => {
+              if (g.tabIds.includes(tabId))
+                return { ...g, tabIds: g.tabIds.filter((id) => id !== tabId) }
+              if (g.id === toGroupId) return { ...g, tabIds: [...g.tabIds, tabId] }
+              return g
+            })
+            .filter((g) => g.tabIds.length > 0)
         })),
 
       removeTabFromSuggestion: (tabId) =>
-        set(state => ({
+        set((state) => ({
           suggestions: state.suggestions
-            .map(g => ({ ...g, tabIds: g.tabIds.filter(id => id !== tabId) }))
-            .filter(g => g.tabIds.length > 0),
+            .map((g) => ({ ...g, tabIds: g.tabIds.filter((id) => id !== tabId) }))
+            .filter((g) => g.tabIds.length > 0)
         })),
 
-      clearSuggestions: () => set({ suggestions: [], isPanelOpen: false }),
+      clearSuggestions: () => set({ suggestions: [], isPanelOpen: false })
     }),
     {
       name: 'kairo-ai-groups',
       partialize: (state) => ({
         geminiApiKey: state.geminiApiKey,
-        autoSuggestEnabled: state.autoSuggestEnabled,
-      }),
+        autoSuggestEnabled: state.autoSuggestEnabled
+      })
     }
   )
 )

@@ -41,10 +41,11 @@ Kairo/
 ```
 
 ## Where to find things:
+
 - **I want to fix a bug in the context menu:** Look in `src/renderer/src/components/ContextMenu/`.
 - **I want to change how the URL bar looks:** Look in `src/renderer/src/components/TopBar/`.
 - **I want to fix a bug where a new tab doesn't load:** Look in `src/main/index.ts` (creation) and `src/renderer/src/store/useBrowserStore.ts` (state).
-- **I want to add a new IPC command:** 
+- **I want to add a new IPC command:**
   1. Add it to `src/preload/index.d.ts` (types)
   2. Emit it from `src/renderer/`
   3. Listen for it in `src/main/index.ts`

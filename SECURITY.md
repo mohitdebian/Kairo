@@ -1,6 +1,6 @@
 # Security Policy
 
-The Kairo team and community take the security of our browser and user data extremely seriously. 
+The Kairo team and community take the security of our browser and user data extremely seriously.
 
 ## Supported Versions
 
@@ -16,9 +16,10 @@ We currently support the latest major version of Kairo. Security updates are pri
 **DO NOT create a public GitHub issue for security vulnerabilities.**
 
 If you discover a security vulnerability, please report it immediately by sending an email to:
-**security@example.com** *(Replace with actual email before launch)*
+**security@example.com** _(Replace with actual email before launch)_
 
 Please include the following information in your report:
+
 1. **Description:** A clear description of the vulnerability.
 2. **Steps to Reproduce:** Exact steps to reproduce the issue (including OS, Kairo version, and payload if applicable).
 3. **Impact:** The potential impact of the vulnerability.
@@ -27,6 +28,7 @@ Please include the following information in your report:
 ### Severity Levels
 
 We classify vulnerabilities using the CVSS (Common Vulnerability Scoring System) framework:
+
 - **Critical**: Remote Code Execution (RCE) in the main process, sandbox escapes, or unrestricted local file access.
 - **High**: Cross-Site Scripting (XSS) in privileged UI contexts (Sidebar, Settings), bypassing security policies.
 - **Medium**: Denial of Service (DoS), UI redressing/spoofing.
@@ -42,6 +44,7 @@ We classify vulnerabilities using the CVSS (Common Vulnerability Scoring System)
 ## Responsible Disclosure
 
 We ask that you practice responsible disclosure:
+
 - Do not publicly disclose the vulnerability until we have had a reasonable amount of time to patch it (usually 30-90 days, depending on severity).
 - Do not exploit the vulnerability for any reason other than demonstrating it to the Kairo team.
 

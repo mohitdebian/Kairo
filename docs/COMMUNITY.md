@@ -4,9 +4,10 @@ To make Kairo a massive success, writing code is only 50% of the battle. The oth
 
 ## GitHub Discussions Setup
 
-We use GitHub Discussions instead of Discord for long-term searchable knowledge. 
+We use GitHub Discussions instead of Discord for long-term searchable knowledge.
 
 ### Categories:
+
 - 📢 **Announcements**: Release notes, roadmap updates (Maintainers only).
 - 💬 **General**: Anything related to browsers, productivity, or Kairo.
 - 💡 **Ideas**: Feature requests that need flesh before becoming GitHub Issues.
@@ -18,11 +19,13 @@ We use GitHub Discussions instead of Discord for long-term searchable knowledge.
 To keep issues organized, we use standard labeling with specific colors:
 
 ### Triage & Workflow
+
 - `good first issue` (🟩 Green) - Perfect for new contributors! Usually simple CSS fixes or typo corrections.
 - `help wanted` (🟦 Blue) - The core team doesn't have time for this, but it's approved for anyone to tackle.
 - `needs triage` (🟨 Yellow) - New issue, maintainers need to review.
 
 ### Categories
+
 - `bug` (🟥 Red) - Something is broken.
 - `enhancement` (🩵 Light Blue) - New feature or improvement.
 - `ui / ux` (🪻 Purple) - Design, CSS, layout, or animations.
@@ -31,6 +34,7 @@ To keep issues organized, we use standard labeling with specific colors:
 - `documentation` (📝 White) - README, docs, or code comments.
 
 ### Subsystems
+
 - `browser-core` (⚙️ Gray) - Main process, tabs, navigation.
 - `ai` (✨ Sparkle) - LLM integrations, smart tab grouping.
 

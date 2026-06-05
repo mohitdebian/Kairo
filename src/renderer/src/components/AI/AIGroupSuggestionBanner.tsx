@@ -4,21 +4,31 @@ import { useAIGroupStore } from '../../store/useAIGroupStore'
 import { useBrowserStore } from '../../store/useBrowserStore'
 
 export const AIGroupSuggestionBanner = () => {
-  const tabs = useBrowserStore(s => s.tabs)
-  const activeWorkspaceId = useBrowserStore(s => s.activeWorkspaceId)
-  const folders = useBrowserStore(s => s.folders)
+  const tabs = useBrowserStore((s) => s.tabs)
+  const activeWorkspaceId = useBrowserStore((s) => s.activeWorkspaceId)
+  const folders = useBrowserStore((s) => s.folders)
 
-  const { isBannerDismissed, autoSuggestEnabled, isAnalyzing, runAnalysis, dismissBanner } = useAIGroupStore()
+  const { isBannerDismissed, autoSuggestEnabled, isAnalyzing, runAnalysis, dismissBanner } =
+    useAIGroupStore()
 
   // Only count ungrouped real tabs in the active workspace
   const ungroupedTabs = tabs.filter(
-    t => t.workspaceId === activeWorkspaceId && !t.folderId && !t.pinned && t.url && t.url !== 'dashboard'
+    (t) =>
+      t.workspaceId === activeWorkspaceId &&
+      !t.folderId &&
+      !t.pinned &&
+      t.url &&
+      t.url !== 'dashboard'
   )
   const totalTabs = tabs.filter(
-    t => t.workspaceId === activeWorkspaceId && t.url && t.url !== 'dashboard'
+    (t) => t.workspaceId === activeWorkspaceId && t.url && t.url !== 'dashboard'
   )
 
-  const shouldShow = autoSuggestEnabled && !isBannerDismissed && ungroupedTabs.length >= 4 && folders.filter(f => f.workspaceId === activeWorkspaceId).length === 0
+  const shouldShow =
+    autoSuggestEnabled &&
+    !isBannerDismissed &&
+    ungroupedTabs.length >= 4 &&
+    folders.filter((f) => f.workspaceId === activeWorkspaceId).length === 0
 
   const handleGroup = () => {
     runAnalysis(totalTabs)

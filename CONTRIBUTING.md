@@ -3,6 +3,7 @@
 First off, thank you for considering contributing to Kairo! It's people like you that make open source such a fantastic community to learn, inspire, and create.
 
 We want to make contributing to Kairo as easy and transparent as possible, whether it's:
+
 - Reporting a bug
 - Discussing the current state of the code
 - Submitting a fix
@@ -14,6 +15,7 @@ We want to make contributing to Kairo as easy and transparent as possible, wheth
 Kairo is built with Electron, React, Vite, and TailwindCSS.
 
 ### Prerequisites
+
 - [Node.js](https://nodejs.org/) (v18+)
 - npm or yarn
 - Git
@@ -38,6 +40,7 @@ Kairo is built with Electron, React, Vite, and TailwindCSS.
 ## 🌳 Branching Strategy
 
 We use a simple branching strategy:
+
 - `main` is our active development branch. It should always be deployable.
 - Feature branches should be branched off `main` and named descriptively:
   - `feat/add-ai-tab-groups`
@@ -52,6 +55,7 @@ We strictly follow [Conventional Commits](https://www.conventionalcommits.org/).
 Format: `<type>(<scope>): <subject>`
 
 Examples:
+
 - `feat(sidebar): add support for nested folders`
 - `fix(tabs): resolve memory leak when closing tabs`
 - `docs(readme): update installation instructions`
@@ -77,6 +81,7 @@ Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `buil
 ## 🆘 Where to get help
 
 If you're stuck, don't hesitate to ask for help!
+
 - Comment on the Issue you're working on.
 - Start a [GitHub Discussion](https://github.com/mohitdebian/Kairo/discussions).
 

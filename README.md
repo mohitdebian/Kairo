@@ -125,8 +125,8 @@ Whether it's squashing a bug, improving documentation, or proposing a massive ne
 Join the conversation!
 
 - **GitHub Discussions**: Drop into our [Discussions](https://github.com/mohitdebian/Kairo/discussions) to share ideas, ask for help, or show off your workflows.
-- **Twitter/X**: Follow us for updates. _(Link TBD)_
-- **Discord**: Join our developer community. _(Link TBD)_
+- **Twitter/X**: Follow us for updates. [Follow](https://x.com/mohitdebian)
+- **Discord**: Join our developer community. [Join Here](https://discord.com/invite/sdnfPMdMFa)
 
 Read more about our community strategy in [docs/COMMUNITY.md](docs/COMMUNITY.md).
 

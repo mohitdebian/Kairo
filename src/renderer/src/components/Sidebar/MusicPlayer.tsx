@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { m as motion, AnimatePresence } from 'framer-motion'
 import { useBrowserStore } from '../../store/useBrowserStore'
 import { Play, Pause, SkipBack, SkipForward, Music2, Volume2, Heart } from 'lucide-react'
 import { cn } from '../../utils/cn'

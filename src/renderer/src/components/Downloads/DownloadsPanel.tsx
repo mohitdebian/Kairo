@@ -1,12 +1,20 @@
 import React from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { m as motion, AnimatePresence } from 'framer-motion'
 import { Download, CheckCircle2, XCircle, AlertCircle, Trash2 } from 'lucide-react'
 import { useBrowserStore } from '../../store/useBrowserStore'
 
 export const DownloadsPanel = () => {
   const { isDownloadsOpen, downloads, toggleDownloads, clearCompletedDownloads } = useBrowserStore()
 
-  if (!isDownloadsOpen) return null
+  React.useEffect(() => {
+    const handleBlur = () => {
+      if (useBrowserStore.getState().isDownloadsOpen) {
+        useBrowserStore.getState().toggleDownloads()
+      }
+    }
+    window.addEventListener('blur', handleBlur)
+    return () => window.removeEventListener('blur', handleBlur)
+  }, [])
 
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 B'
@@ -18,11 +26,14 @@ export const DownloadsPanel = () => {
 
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-        className="absolute bottom-16 left-2 w-80 bg-[#1a1a1e]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col"
+      {isDownloadsOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={toggleDownloads} />
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className="absolute bottom-16 left-2 right-2 bg-[#1a1a1e]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col"
         style={{ maxHeight: '400px' }}
       >
         <div className="p-3 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
@@ -93,6 +104,8 @@ export const DownloadsPanel = () => {
           )}
         </div>
       </motion.div>
+        </>
+      )}
     </AnimatePresence>
   )
 }

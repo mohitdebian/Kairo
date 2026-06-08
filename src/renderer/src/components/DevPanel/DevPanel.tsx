@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { m as motion, AnimatePresence } from 'framer-motion'
 import { Sparkles, FileText, X, Bot, Loader2 } from 'lucide-react'
 import { useBrowserStore } from '../../store/useBrowserStore'
 import { clsx } from 'clsx'

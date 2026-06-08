@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion'
+import { m as motion, AnimatePresence } from 'framer-motion'
 import { Sparkles, X } from 'lucide-react'
 import { useAIGroupStore } from '../../store/useAIGroupStore'
 import { useBrowserStore } from '../../store/useBrowserStore'

@@ -7,7 +7,7 @@ import { AIGroupPanel } from '../AI/AIGroupPanel'
 import { useBrowserStore } from '../../store/useBrowserStore'
 import { ShieldCheck, Minus, Square, X } from 'lucide-react'
 import { cn } from '../../utils/cn'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 const WindowControls = () => {
   return (
@@ -38,6 +38,7 @@ const WindowControls = () => {
 }
 
 export const AppLayout = () => {
+  const [isTopBarHovered, setIsTopBarHovered] = useState(false)
   const activeTabId = useBrowserStore((state) => state.activeTabIds[0])
   const activeTabTitle = useBrowserStore(
     (state) => state.tabs.find((t) => t.id === activeTabId)?.title
@@ -205,7 +206,29 @@ export const AppLayout = () => {
           )}
         >
           {!isFullscreen && (
-            <div className="h-8 w-full shrink-0 drag-region flex items-center justify-between px-3 border-b border-white/[0.02] relative z-50 bg-bg-primary">
+            <div 
+              onMouseEnter={() => {
+                console.log('Top bar hover ENTER');
+                setIsTopBarHovered(true);
+              }}
+              onMouseLeave={() => {
+                console.log('Top bar hover LEAVE');
+                setIsTopBarHovered(false);
+              }}
+              className={cn(
+                "absolute top-0 left-0 right-0 z-[1000] transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] overflow-hidden bg-[#131313] border-b border-white/[0.01]",
+                isTopBarHovered ? "h-10 shadow-2xl border-white/[0.03]" : "h-[14px]"
+              )}
+            >
+              {/* Visible handle to show where to hover */}
+              {!isTopBarHovered && (
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-[3px] bg-white/30 rounded-b-full pointer-events-none shadow-sm" />
+              )}
+              
+              <div className={cn(
+                "h-10 w-full drag-region flex items-center justify-between px-3 bg-[#131313] border-b border-white/[0.03] transition-opacity duration-200",
+                isTopBarHovered ? "opacity-100" : "opacity-0 pointer-events-none"
+              )}>
               <div className="flex items-center gap-1 no-drag">
                 <button
                   onClick={() => window.electron.ipcRenderer.send('tab-go-back', activeTabId)}
@@ -242,11 +265,13 @@ export const AppLayout = () => {
               )}
               <WindowControls />
             </div>
+            </div>
           )}
           <div className={cn('flex-1 relative overflow-hidden')}>
             <div
               className={cn(
-                'w-full h-full relative overflow-hidden bg-black'
+                'w-full h-full relative overflow-hidden bg-black',
+                !isFullscreen && 'pt-[14px]'
               )}
             >
               <BrowserView />

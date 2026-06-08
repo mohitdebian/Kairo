@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { m as motion, AnimatePresence } from 'framer-motion'
 import {
   ExternalLink,
   Link,
@@ -55,7 +55,7 @@ export const WebContextMenu = () => {
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const handleShowContextMenu = (_event: any, p: ContextMenuParams & { x: number; y: number }) => {
+    const handleShowContextMenu = (p: ContextMenuParams & { x: number; y: number }) => {
       setParams(p)
       setIsVisible(true)
     }

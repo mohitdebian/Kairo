@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { m as motion} from 'framer-motion'
 import { useBrowserStore } from '../../store/useBrowserStore'
 import { Dashboard } from '../Dashboard/Dashboard'
 import { HistoryPage } from '../History/HistoryPage'
@@ -54,7 +54,7 @@ const TabWebContents = React.memo(({ tab, isActive, isSplitMode }: { tab: any, i
     const handleWindowResize = () => syncFromContainer(false)
     window.addEventListener('resize', handleWindowResize)
 
-    const handleForceSync = (_: unknown, targetTabId?: string) => {
+    const handleForceSync = (targetTabId?: string) => {
       if (targetTabId && targetTabId !== tab.id) return
       syncFromContainer(true)
     }
@@ -251,7 +251,7 @@ export const BrowserView = () => {
   const showHistory = isHistoryOnly
 
   return (
-    <div className="w-full h-full relative bg-black overflow-hidden">
+    <div className="w-full h-full relative bg-transparent overflow-hidden">
       {isRealSplitMode ? (
         // Split mode: SplitLayoutTree provides layout containers; BrowserTabs portal into leaves
         <>

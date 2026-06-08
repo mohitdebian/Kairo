@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { m as motion} from 'framer-motion'
 import { useBrowserStore } from '../../store/useBrowserStore'
 import { useAIGroupStore } from '../../store/useAIGroupStore'
 import { X, Trash2, CheckCircle2, Sparkles, Key, Eye, EyeOff } from 'lucide-react'

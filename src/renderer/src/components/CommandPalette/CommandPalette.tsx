@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { m as motion, AnimatePresence } from 'framer-motion'
 import { Search, Globe, Layout, Clock, Bookmark, Pin, Plus } from 'lucide-react'
 import { useBrowserStore } from '../../store/useBrowserStore'
 import { clsx } from 'clsx'
@@ -56,7 +56,7 @@ export const CommandPalette = () => {
     const timer = setTimeout(async () => {
       const activeTabs = useBrowserStore.getState().tabs
       const results = await window.electron.ipcRenderer.invoke('omnibox-search', query, activeTabs, [])
-      setOmniboxResults(results)
+      setOmniboxResults(results || [])
       setSelectedIndex(0)
     }, 150)
 
@@ -86,7 +86,7 @@ export const CommandPalette = () => {
         setQuery('')
       }
     },
-    ...workspaces.map((ws) => ({
+    ...(workspaces || []).map((ws) => ({
       id: `ws-${ws.id}`,
       title: `Switch to ${ws.name}`,
       icon: Layout,

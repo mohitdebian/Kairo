@@ -1,4 +1,5 @@
 import React from 'react'
+import { LazyMotion, domAnimation } from 'framer-motion'
 import { AppLayout } from './components/Layout/AppLayout'
 import { SettingsModal } from './components/Settings/SettingsModal'
 import { WebContextMenu } from './components/ContextMenu/WebContextMenu'
@@ -34,9 +35,11 @@ class ErrorBoundary extends React.Component<any, { hasError: boolean; error: any
 function App() {
   return (
     <ErrorBoundary>
+      <LazyMotion features={domAnimation} strict>
       <AppLayout />
       <SettingsModal />
       <WebContextMenu />
+          </LazyMotion>
     </ErrorBoundary>
   )
 }

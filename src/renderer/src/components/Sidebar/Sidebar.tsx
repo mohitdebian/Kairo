@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
-import { motion } from 'framer-motion'
+import { m as motion, AnimatePresence } from 'framer-motion'
 import {
   Plus,
   Search,
@@ -16,7 +16,11 @@ import {
   RotateCw,
   Globe,
   Sparkles,
-  Download
+  Download,
+  Copy,
+  Columns,
+  ArrowLeft,
+  ArrowRight
 } from 'lucide-react'
 import { useBrowserStore, Tab } from '../../store/useBrowserStore'
 import { useShallow } from 'zustand/react/shallow'
@@ -26,6 +30,8 @@ import { MusicPlayer } from './MusicPlayer'
 import { AddressBar } from './AddressBar'
 import { Folder } from './Folder'
 import { DownloadsPanel } from '../Downloads/DownloadsPanel'
+import { CreateSpaceView } from './CreateSpaceView'
+import { ThemeEditorView } from './ThemeEditorView'
 import { useTabStripDnD } from '../../store/TabStripDnDController'
 import { AIGroupSuggestionBanner } from '../AI/AIGroupSuggestionBanner'
 import { useAIGroupStore } from '../../store/useAIGroupStore'
@@ -54,13 +60,25 @@ export const getTabFavicon = (tab: Tab) => {
   return null
 }
 
-const FloatingTooltip = ({ text, children }: { text: string; children: React.ReactNode }) => {
+const FloatingTooltip = ({
+  text,
+  children,
+  position = 'right'
+}: {
+  text: string
+  children: React.ReactNode
+  position?: 'top' | 'right'
+}) => {
   const [show, setShow] = useState(false)
   const [coords, setCoords] = useState({ x: 0, y: 0 })
 
   const handleMouseEnter = (e: React.MouseEvent) => {
     const rect = e.currentTarget.getBoundingClientRect()
-    setCoords({ x: rect.right + 10, y: rect.top + rect.height / 2 })
+    if (position === 'top') {
+      setCoords({ x: rect.left + rect.width / 2, y: rect.top - 10 })
+    } else {
+      setCoords({ x: rect.right + 10, y: rect.top + rect.height / 2 })
+    }
     setShow(true)
   }
 
@@ -75,11 +93,15 @@ const FloatingTooltip = ({ text, children }: { text: string; children: React.Rea
         typeof document !== 'undefined' &&
         ReactDOM.createPortal(
           <motion.div
-            initial={{ opacity: 0, y: 5 }}
+            initial={{ opacity: 0, y: position === 'top' ? 5 : 5 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 5 }}
+            exit={{ opacity: 0, y: position === 'top' ? 5 : 5 }}
             transition={{ duration: 0.15 }}
-            style={{ left: coords.x, top: coords.y, transform: 'translateY(-50%)' }}
+            style={{
+              left: coords.x,
+              top: coords.y,
+              transform: position === 'top' ? 'translate(-50%, -100%)' : 'translateY(-50%)'
+            }}
             className="fixed z-[100] px-3 py-1.5 rounded-lg bg-[#1a1a1e]/80 backdrop-blur-xl border border-white/10 text-white text-[12px] font-medium premium-shadow pointer-events-none whitespace-nowrap"
           >
             {text}
@@ -320,7 +342,18 @@ const PinnedTabItem = React.memo(({ tabId, onContextMenu }: any) => {
 export const Sidebar = () => {
   const workspaces = useBrowserStore(state => state.workspaces)
   const activeWorkspaceId = useBrowserStore(state => state.activeWorkspaceId)
-  const isSidebarCollapsed = useBrowserStore(state => state.isSidebarCollapsed)
+  const [isSidebarCollapsed, toggleSidebarCollapse] = useBrowserStore(
+    useShallow((s) => [s.isSidebarCollapsed, s.toggleSidebarCollapse])
+  )
+  const [isPlusMenuOpen, setPlusMenuOpen] = useState(false)
+  const [sidebarView, setSidebarView] = useState<'main' | 'create-space'>('main')
+
+  // Global blur listener for Plus Menu
+  useEffect(() => {
+    const handleBlur = () => setPlusMenuOpen(false)
+    window.addEventListener('blur', handleBlur)
+    return () => window.removeEventListener('blur', handleBlur)
+  }, [])
   const isSidebarOpen = useBrowserStore(state => state.isSidebarOpen)
   const sidebarWidth = useBrowserStore(state => state.sidebarWidth)
   const searchEngine = useBrowserStore(state => state.searchEngine)
@@ -354,12 +387,26 @@ export const Sidebar = () => {
   )
 
   useEffect(() => {
+    const store = useBrowserStore.getState()
+    let needsUpdate = false
+    let newTabs = store.tabs
+
     // If the user has multiple spaces and they appear to be the old defaults, remove them and migrate to 'Default'
     if (workspaces.length > 1 && workspaces.some(w => w.name === 'Personal' || w.name === 'Development')) {
-      const store = useBrowserStore.getState()
       store.reorderWorkspaces([{ id: '1', name: 'Default', icon: 'Code', color: '#9d7cd8' }])
       store.setActiveWorkspace('1')
-      const newTabs = store.tabs.map(t => ({ ...t, workspaceId: '1' }))
+      newTabs = newTabs.map(t => ({ ...t, workspaceId: '1' }))
+      needsUpdate = true
+    }
+
+    // Recover any ghost tabs that were incorrectly saved with workspaceId: 'current'
+    if (newTabs.some(t => t.workspaceId === 'current')) {
+      const activeId = store.activeWorkspaceId || '1'
+      newTabs = newTabs.map(t => t.workspaceId === 'current' ? { ...t, workspaceId: activeId } : t)
+      needsUpdate = true
+    }
+
+    if (needsUpdate) {
       store.reorderTabs(newTabs)
     }
   }, [])
@@ -400,10 +447,14 @@ export const Sidebar = () => {
     }
     
     const menuWidth = 192 // w-48
-    const menuMaxHeight = 220
+    let menuMaxHeight = 220
+    if (type === 'workspace') menuMaxHeight = 90
+    if (type === 'folder') menuMaxHeight = 90
+    if (type === 'tab') menuMaxHeight = 160
+    
     const actualWidth = useBrowserStore.getState().isSidebarCollapsed ? 220 : Math.max(220, useBrowserStore.getState().sidebarWidth || 280)
     const maxX = Math.max(10, actualWidth - menuWidth - 8)
-    const clampedY = Math.min(e.clientY, window.innerHeight - menuMaxHeight)
+    const clampedY = Math.min(e.clientY, window.innerHeight - menuMaxHeight - 10)
     setMenu({ type, id, x: Math.min(e.clientX, maxX), y: clampedY })
   }, [setMenu])
 
@@ -564,26 +615,34 @@ export const Sidebar = () => {
               </>
             )
           })()}
-        {menu.type === 'workspace' &&
-          (() => {
-            const ws = workspaces.find((w) => w.id === menu.id)
-            return (
-              <>
-                {ws && workspaces.length > 1 && (
-                  <button
-                    onClick={() => {
-                      useBrowserStore.getState().deleteWorkspace(menu.id)
-                      setMenu(null)
-                    }}
-                    className="w-full text-left px-3 py-1.5 text-[13px] text-red-400 hover:bg-red-500/10 flex items-center gap-2.5"
-                  >
-                    <X size={13} />
-                    Delete Space
-                  </button>
-                )}
-              </>
-            )
-          })()}
+        {menu.type === 'workspace' && (
+          <>
+            <button
+              onClick={() => {
+                // Future: Implement rename space logic
+                setMenu(null)
+              }}
+              className="w-full text-left px-3 py-1.5 text-[13px] text-white/80 hover:bg-white/[0.08] hover:text-white flex items-center gap-2.5 opacity-50 cursor-not-allowed"
+            >
+              <FolderIcon size={13} className="text-white/40" />
+              Rename Space
+            </button>
+            <div className="my-1 border-t border-white/[0.06]" />
+            <button
+              onClick={() => {
+                const workspaces = useBrowserStore.getState().workspaces
+                if (workspaces.length > 1) {
+                  useBrowserStore.getState().deleteWorkspace(menu.id)
+                }
+                setMenu(null)
+              }}
+              className="w-full text-left px-3 py-1.5 text-[13px] text-red-400 hover:bg-red-500/10 flex items-center gap-2.5"
+            >
+              <X size={13} />
+              Delete Space
+            </button>
+          </>
+        )}
       </div>
     )
   }
@@ -595,7 +654,7 @@ export const Sidebar = () => {
         initial={false}
         animate={{ width: isSidebarCollapsed ? 64 : Math.max(220, sidebarWidth || 280) }}
         transition={{ type: 'spring', stiffness: 400, damping: 40 }}
-        className="bg-[#09090b] border-r border-white/[0.03] h-full shrink-0 relative z-40 overflow-hidden flex flex-col"
+        className="bg-[#131313] border-r border-white/[0.03] h-full shrink-0 relative z-40 overflow-hidden flex flex-col select-none"
         onContextMenu={handleSidebarContextMenu}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -624,22 +683,30 @@ export const Sidebar = () => {
               >
                 <PanelLeft size={14} />
               </button>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleBack}
+                className="p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-white/5 no-drag"
+                title="Go Back"
+              >
+                <ArrowLeft size={14} />
+              </button>
+              <button
+                onClick={handleForward}
+                className="p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-white/5 no-drag"
+                title="Go Forward"
+              >
+                <ArrowRight size={14} />
+              </button>
               <button
                 onClick={handleReload}
-                className="p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-white/5 no-drag"
+                className="p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-white/5 no-drag ml-0.5"
                 title="Reload Tab"
               >
                 <RotateCw size={14} className={cn(primaryActiveTab?.isLoading && 'animate-spin')} />
               </button>
             </div>
-            <div className="flex-1" />
-            <button
-              onClick={() => useBrowserStore.getState().toggleCommandPalette()}
-              className="p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-white/5 flex items-center gap-1.5"
-            >
-              <Search size={14} />
-              <span className="text-[10px] tracking-widest font-mono opacity-50">⌘T</span>
-            </button>
           </div>
 
           <div className="px-3 pb-4 relative z-50">
@@ -650,6 +717,9 @@ export const Sidebar = () => {
             className="flex-1 overflow-y-auto no-scrollbar px-3 relative flex flex-col pb-4 mt-2"
             onContextMenu={handleSidebarContextMenu}
           >
+            <div className="text-[13px] font-semibold text-white/80 mb-3 px-1">
+              {workspaces.find(w => w.id === activeWorkspaceId)?.name}
+            </div>
             <AIGroupSuggestionBanner />
             {pinnedTabIds.length > 0 && (
               <div className="mb-4 grid grid-cols-5 gap-2">
@@ -714,65 +784,44 @@ export const Sidebar = () => {
           <MusicPlayer />
 
           {/* Bottom Controls */}
-          <div className="px-3 py-4 border-t border-white/[0.03] flex items-center justify-between">
-            {workspaces.length > 1 ? (
-              <div className="flex items-center gap-1.5 overflow-hidden">
-                {workspaces.map((ws) => (
-                  <WorkspaceDot
-                    key={ws.id}
-                    workspace={ws}
-                    isActive={activeWorkspaceId === ws.id}
-                    onClick={() => useBrowserStore.getState().setActiveWorkspace(ws.id)}
-                    onContextMenu={handleContextMenu}
-                    onPointerDown={handlePointerDown}
-                    isDragging={isDraggingActive && dragSession?.draggedId === ws.id}
-                  />
-                ))}
-                <button
-                  onClick={() =>
-                    useBrowserStore.getState().addWorkspace({ name: 'New Space', icon: 'Code', color: '#8b5cf6' })
-                  }
-                  className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-white/10 text-text-secondary hover:text-white transition-colors ml-1"
-                >
-                  <Plus size={12} />
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() =>
-                    useBrowserStore.getState().addWorkspace({ name: 'New Space', icon: 'Code', color: '#8b5cf6' })
-                  }
-                  className="p-1.5 rounded-md hover:bg-white/10 text-text-secondary hover:text-white transition-colors"
-                  title="Add Workspace"
-                >
-                  <Plus size={14} />
-                </button>
-              </div>
-            )}
+          <div className="px-3 py-4 flex items-center justify-between shrink-0 w-full">
+            <button
+              onClick={() => useBrowserStore.getState().toggleDownloads()}
+              className="shrink-0 text-text-secondary hover:text-text-primary hover:bg-white/10 p-1.5 rounded-lg relative transition-colors"
+            >
+              <Download size={16} />
+              {useBrowserStore.getState().downloads.some(d => d.state === 'progressing') && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              )}
+            </button>
 
-            <div className="flex items-center gap-2">
+            {/* Centered workspace dots */}
+            <div className="flex-1 flex items-center justify-center gap-1.5 overflow-hidden px-2">
+              {workspaces.map((ws) => (
+                <div 
+                  key={ws.id}
+                  onClick={() => useBrowserStore.getState().setActiveWorkspace(ws.id)}
+                  onContextMenu={(e) => handleContextMenu(e, 'workspace', ws.id)}
+                  className="w-[22px] h-[22px] shrink-0 rounded-md hover:bg-white/10 flex items-center justify-center cursor-pointer transition-colors"
+                  title={ws.name}
+                >
+                  <div 
+                    className={cn(
+                      "w-1.5 h-1.5 rounded-full transition-all duration-200",
+                      activeWorkspaceId === ws.id ? "bg-white/80" : "bg-white/30"
+                    )} 
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="shrink-0 relative">
               <button
-                onClick={() =>
-                  useBrowserStore.getState().setSearchEngine(searchEngine === 'google' ? 'duckduckgo' : 'google')
-                }
-                className={cn(
-                  'p-1.5 rounded-md',
-                  searchEngine === 'google'
-                    ? 'text-blue-400 bg-blue-500/10'
-                    : 'text-orange-400 bg-orange-500/10'
-                )}
-                title={`Search Engine: ${searchEngine === 'google' ? 'Google' : 'DuckDuckGo'}`}
+                onClick={() => setPlusMenuOpen(!isPlusMenuOpen)}
+                className="text-text-secondary hover:text-text-primary hover:bg-white/10 p-1.5 rounded-lg transition-colors"
               >
-                <Globe size={14} />
+                <Plus size={16} />
               </button>
-              <button
-                onClick={() => useBrowserStore.getState().toggleSettings()}
-                className="p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-white/5"
-              >
-                <Settings size={14} />
-              </button>
-              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 shadow-inner ml-1" />
             </div>
           </div>
         </div>
@@ -836,33 +885,25 @@ export const Sidebar = () => {
             />
           </div>
 
-          <div className="flex flex-col items-center mt-auto pt-4 no-drag w-full shrink-0 border-t border-white/[0.03]">
-            <FloatingTooltip text="New Tab">
+          <div className="flex flex-col items-center mt-auto pt-4 no-drag w-full shrink-0">
+            <div className="w-full relative flex justify-center">
               <button
-                onClick={() =>
-                  useBrowserStore.getState().addTab({
-                    title: 'Dashboard',
-                    url: 'dashboard',
-                    workspaceId: activeWorkspaceId
-                  })
-                }
+                onClick={() => setPlusMenuOpen(!isPlusMenuOpen)}
                 className="text-text-secondary hover:text-text-primary hover:bg-white/5 p-2 rounded-lg mb-2"
               >
                 <Plus size={18} />
               </button>
-            </FloatingTooltip>
-            <FloatingTooltip text="Downloads">
-              <button
-                onClick={() => useBrowserStore.getState().toggleDownloads()}
-                className="text-text-secondary hover:text-text-primary hover:bg-white/5 p-2 rounded-lg mb-2 relative"
-              >
-                <Download size={16} />
-                {useBrowserStore.getState().downloads.some(d => d.state === 'progressing') && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                )}
-              </button>
-            </FloatingTooltip>
-            <FloatingTooltip text="Settings">
+            </div>
+            <button
+              onClick={() => useBrowserStore.getState().toggleDownloads()}
+              className="text-text-secondary hover:text-text-primary hover:bg-white/5 p-2 rounded-lg mb-2 relative"
+            >
+              <Download size={16} />
+              {useBrowserStore.getState().downloads.some(d => d.state === 'progressing') && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              )}
+            </button>
+            <FloatingTooltip text="Settings" position="top">
               <button
                 onClick={() => useBrowserStore.getState().toggleSettings()}
                 className="text-text-secondary hover:text-text-primary hover:bg-white/5 p-2 rounded-lg mb-4"
@@ -873,6 +914,75 @@ export const Sidebar = () => {
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 shadow-inner mb-2" />
           </div>
         </div>
+        {/* Plus Menu Popup */}
+        <AnimatePresence>
+          {isPlusMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setPlusMenuOpen(false)} />
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                className="absolute bottom-16 right-2 w-48 bg-[#1f1f23]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col p-1.5"
+              >
+                <button
+                  onClick={() => {
+                    setSidebarView('create-space')
+                    setPlusMenuOpen(false)
+                  }}
+                  className="w-full text-left px-2 py-2 text-[13px] text-white/90 hover:bg-white/10 rounded-md flex items-center gap-2.5 transition-colors"
+                >
+                  <Copy size={14} className="text-white/60" />
+                  Create Space
+                </button>
+                <button
+                  onClick={() => {
+                    useBrowserStore.getState().addFolder({ name: 'New Folder', workspaceId: activeWorkspaceId })
+                    setPlusMenuOpen(false)
+                  }}
+                  className="w-full text-left px-2 py-2 text-[13px] text-white/90 hover:bg-white/10 rounded-md flex items-center gap-2.5 transition-colors"
+                >
+                  <FolderIcon size={14} className="text-white/60" />
+                  Create Folder
+                </button>
+                
+                <div className="h-px w-full bg-white/10 my-1.5" />
+                
+                <button
+                  disabled
+                  className="w-full text-left px-2 py-2 text-[13px] text-white/30 rounded-md flex items-center gap-2.5 cursor-not-allowed"
+                >
+                  <Columns size={14} className="text-white/20" />
+                  New Split
+                </button>
+                <button
+                  onClick={() => {
+                    useBrowserStore.getState().addTab({ title: 'Dashboard', url: 'dashboard', workspaceId: activeWorkspaceId })
+                    setPlusMenuOpen(false)
+                  }}
+                  className="w-full text-left px-2 py-2 text-[13px] text-white/90 hover:bg-white/10 rounded-md flex items-center gap-2.5 transition-colors"
+                >
+                  <Plus size={14} className="text-white/60" />
+                  New Tab
+                </button>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        <DownloadsPanel />
+
+        <AnimatePresence>
+          {sidebarView === 'create-space' && (
+            <CreateSpaceView 
+              onClose={() => setSidebarView('main')} 
+              onEditTheme={() => setSidebarView('edit-theme')}
+            />
+          )}
+          {sidebarView === 'edit-theme' && (
+            <ThemeEditorView onClose={() => setSidebarView('create-space')} />
+          )}
+        </AnimatePresence>
       </motion.div>
 
       {isDraggingActive && dragSession && (
@@ -941,9 +1051,6 @@ export const Sidebar = () => {
           </div>
         </>
       )}
-      
-      <DownloadsPanel />
-      {/* Trigger HMR */}
     </>
   )
 }

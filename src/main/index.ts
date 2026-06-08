@@ -594,7 +594,6 @@ app.whenReady().then(() => {
   })
 
   ipcMain.on('context-menu-action', (_, action: string, tabId: string, params: any) => {
-    const mainWindow = BrowserWindow.getAllWindows()[0]
     let targetContents: Electron.WebContents | undefined
     if (tabId === 'dashboard' && mainWindow) {
       targetContents = mainWindow.webContents
@@ -826,39 +825,39 @@ app.whenReady().then(() => {
     view.webContents.setMaxListeners(30) // Suppress false-positive max-listeners warning from Electron internals
 
     view.webContents.on('did-navigate', (_e, navUrl) => {
-      event.sender.send('tab-navigated', tabId, navUrl)
+      mainWindow.webContents.send('tab-navigated', tabId, navUrl)
     })
     view.webContents.on('did-navigate-in-page', (_e, navUrl) => {
-      event.sender.send('tab-navigated', tabId, navUrl)
+      mainWindow.webContents.send('tab-navigated', tabId, navUrl)
     })
     view.webContents.on('page-title-updated', (_e, title) => {
-      event.sender.send('tab-title-updated', tabId, title)
+      mainWindow.webContents.send('tab-title-updated', tabId, title)
     })
     view.webContents.on('did-start-navigation', (_e, _url, isInPlace, isMainFrame) => {
       if (isMainFrame && !isInPlace) {
-        event.sender.send('tab-loading', tabId, true)
+        mainWindow.webContents.send('tab-loading', tabId, true)
       }
     })
     view.webContents.on('did-finish-load', () => {
-      event.sender.send('tab-loading', tabId, false)
+      mainWindow.webContents.send('tab-loading', tabId, false)
     })
     view.webContents.on('did-fail-load', () => {
-      event.sender.send('tab-loading', tabId, false)
+      mainWindow.webContents.send('tab-loading', tabId, false)
     })
     view.webContents.on('did-stop-loading', () => {
-      event.sender.send('tab-loading', tabId, false)
+      mainWindow.webContents.send('tab-loading', tabId, false)
       HistoryManager.addVisit(view.webContents.getURL(), view.webContents.getTitle())
     })
     view.webContents.on('page-favicon-updated', (_e, favicons) => {
       if (favicons && favicons.length > 0) {
-        event.sender.send('tab-favicon-updated', tabId, favicons[0])
+        mainWindow.webContents.send('tab-favicon-updated', tabId, favicons[0])
         HistoryManager.updateFavicon(view.webContents.getURL(), favicons[0])
       }
     })
     view.webContents.on('console-message', (_event, _level, message) => {
       const msg = message || ''
       if (msg.startsWith('KAIRO_MUSIC_STATE:')) {
-        event.sender.send('tab-music-state', tabId, msg.replace('KAIRO_MUSIC_STATE:', ''))
+        mainWindow.webContents.send('tab-music-state', tabId, msg.replace('KAIRO_MUSIC_STATE:', ''))
         return
       }
     })
@@ -907,11 +906,11 @@ app.whenReady().then(() => {
         }
         if (input.control || input.meta) {
           if (input.key.toLowerCase() === 'k' || input.key.toLowerCase() === 'l') {
-            event.sender.send('shortcut-command-palette')
+            mainWindow.webContents.send('shortcut-command-palette')
             e.preventDefault()
           }
           if (input.key.toLowerCase() === 't') {
-            event.sender.send('shortcut-new-tab')
+            mainWindow.webContents.send('shortcut-new-tab')
             e.preventDefault()
           }
           if (input.key.toLowerCase() === 'r') {
@@ -930,13 +929,13 @@ app.whenReady().then(() => {
         menu.append(
           new MenuItem({
             label: 'Open Link in New Tab',
-            click: () => event.sender.send('open-in-new-tab', params.linkURL)
+            click: () => mainWindow.webContents.send('open-in-new-tab', params.linkURL)
           })
         )
         menu.append(
           new MenuItem({
             label: 'Open Link in New Space',
-            click: () => event.sender.send('open-in-space', { url: params.linkURL, spaceId: 'new' })
+            click: () => mainWindow.webContents.send('open-in-space', { url: params.linkURL, spaceId: 'new' })
           })
         )
         menu.append(new MenuItem({ type: 'separator' }))
@@ -960,7 +959,7 @@ app.whenReady().then(() => {
         menu.append(
           new MenuItem({
             label: 'Open Image in New Tab',
-            click: () => event.sender.send('open-in-new-tab', params.srcURL)
+            click: () => mainWindow.webContents.send('open-in-new-tab', params.srcURL)
           })
         )
         menu.append(
@@ -1001,7 +1000,7 @@ app.whenReady().then(() => {
         menu.append(
           new MenuItem({
             label: 'Open in New Tab',
-            click: () => event.sender.send('open-in-new-tab', params.srcURL)
+            click: () => mainWindow.webContents.send('open-in-new-tab', params.srcURL)
           })
         )
         menu.append(
@@ -1024,7 +1023,7 @@ app.whenReady().then(() => {
           new MenuItem({
             label: 'Search with Google',
             click: () =>
-              event.sender.send(
+              mainWindow.webContents.send(
                 'open-in-new-tab',
                 `https://google.com/search?q=${encodeURIComponent(params.selectionText)}`
               )
@@ -1074,7 +1073,7 @@ app.whenReady().then(() => {
         menu.append(
           new MenuItem({
             label: 'View Page Source',
-            click: () => event.sender.send('open-in-new-tab', `view-source:${params.pageURL}`)
+            click: () => mainWindow.webContents.send('open-in-new-tab', `view-source:${params.pageURL}`)
           })
         )
       }
@@ -1095,16 +1094,14 @@ app.whenReady().then(() => {
     })
 
     view.webContents.on('enter-html-full-screen', () => {
-      const win = BrowserWindow.fromWebContents(event.sender)
-      if (win) win.setFullScreen(true)
+      if (mainWindow) mainWindow.setFullScreen(true)
       setTimeout(() => {
         if (!mainWindow.isDestroyed()) mainWindow.webContents.send('window-fullscreen-state', true)
       }, 100)
     })
 
     view.webContents.on('leave-html-full-screen', () => {
-      const win = BrowserWindow.fromWebContents(event.sender)
-      if (win) win.setFullScreen(false)
+      if (mainWindow) mainWindow.setFullScreen(false)
       const syncAfterExit = () => {
         if (mainWindow.isDestroyed()) return
         mainWindow.webContents.send('window-fullscreen-state', false)
@@ -1270,11 +1267,11 @@ app.whenReady().then(() => {
       }
 
       if (details.disposition === 'new-window') {
-        event.sender.send('open-in-split', details.url)
+        mainWindow.webContents.send('open-in-split', details.url)
         return { action: 'deny' }
       }
 
-      event.sender.send('open-in-new-tab', details.url)
+      mainWindow.webContents.send('open-in-new-tab', details.url)
       return { action: 'deny' }
     })
 
@@ -1282,11 +1279,10 @@ app.whenReady().then(() => {
     tabViews.set(tabId, view)
   })
 
-  ipcMain.on('destroy-tab-view', (event, tabId: string) => {
+  ipcMain.on('destroy-tab-view', (_event, tabId: string) => {
     const view = tabViews.get(tabId)
     if (view) {
-      const mainWindow = BrowserWindow.fromWebContents(event.sender)
-      if (mainWindow && mainWindow.contentView.children.includes(view)) {
+      if (mainWindow && !mainWindow.isDestroyed() && mainWindow.contentView.children.includes(view)) {
         mainWindow.contentView.removeChildView(view)
       }
       tabViews.delete(tabId)
@@ -1306,14 +1302,13 @@ app.whenReady().then(() => {
 
   ipcMain.on(
     'update-tab-bounds',
-    (event, tabId: string, bounds: any, isVisible: boolean, notifyResize = false) => {
+    (_event, tabId: string, bounds: any, isVisible: boolean, notifyResize = false) => {
       const view = tabViews.get(tabId)
       if (view) {
-        const win = BrowserWindow.fromWebContents(event.sender)
-        if (win) {
+        if (mainWindow && !mainWindow.isDestroyed()) {
           if (isVisible && bounds.width > 0 && bounds.height > 0) {
-            if (!win.contentView.children.includes(view)) {
-              win.contentView.addChildView(view)
+            if (!mainWindow.contentView.children.includes(view)) {
+              mainWindow.contentView.addChildView(view)
             }
             // Electron requires integer bounds - ensure they're valid
             const validBounds = {
@@ -1327,8 +1322,8 @@ app.whenReady().then(() => {
               notifyWebContentsResize(view)
             }
           } else {
-            if (win.contentView.children.includes(view)) {
-              win.contentView.removeChildView(view)
+            if (mainWindow.contentView.children.includes(view)) {
+              mainWindow.contentView.removeChildView(view)
             }
           }
         }

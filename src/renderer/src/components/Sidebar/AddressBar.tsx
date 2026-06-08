@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { m as motion, AnimatePresence } from 'framer-motion'
 import { Search, Globe, ArrowRight, ArrowLeft } from 'lucide-react'
 import { useBrowserStore, Tab } from '../../store/useBrowserStore'
 import { SiteSettingsPopover } from './SiteSettingsPopover'
@@ -46,7 +46,8 @@ export const AddressBar = ({ primaryActiveTab }: AddressBarProps) => {
     const timer = setTimeout(async () => {
       if (window.electron?.ipcRenderer) {
         const currentTabs = useBrowserStore.getState().tabs
-        const results = await window.electron.ipcRenderer.invoke('omnibox-search', inputValue, currentTabs, [])
+        let results = await window.electron.ipcRenderer.invoke('omnibox-search', inputValue, currentTabs, [])
+        if (!results) results = []
         
         // Add search suggestion at the bottom if it's not a direct URL
         const isUrl = inputValue.includes('.') && !inputValue.includes(' ')
@@ -100,6 +101,9 @@ export const AddressBar = ({ primaryActiveTab }: AddressBarProps) => {
 
       if (primaryActiveTab?.id) {
         store.updateTabUrl(primaryActiveTab.id, finalUrl)
+        if (window.electron?.ipcRenderer) {
+          window.electron.ipcRenderer.send('tab-navigate', primaryActiveTab.id, finalUrl)
+        }
       } else {
         store.addTab({ title: finalUrl, url: finalUrl, workspaceId: activeWorkspaceId })
       }
@@ -156,7 +160,7 @@ export const AddressBar = ({ primaryActiveTab }: AddressBarProps) => {
           onKeyDown={handleKeyDown}
           onChange={(e) => setInputValue(e.target.value)}
           value={inputValue}
-          className="bg-transparent border-none outline-none text-[13px] text-text-primary w-full placeholder-text-secondary/50 font-medium px-2"
+          className="bg-transparent border-none outline-none text-[13px] text-text-primary w-full placeholder-text-secondary/50 font-medium px-2 select-text"
         />
         <AnimatePresence>
           {primaryActiveTab?.isLoading && (
@@ -172,26 +176,7 @@ export const AddressBar = ({ primaryActiveTab }: AddressBarProps) => {
         </AnimatePresence>
       </div>
 
-      <div className="flex items-center gap-1 text-text-secondary px-1">
-        <button
-          onClick={() => primaryActiveTab && window.electron?.ipcRenderer?.send('tab-go-back', primaryActiveTab.id)}
-          className="p-1.5 rounded-lg hover:text-white hover:bg-white/10 transition-colors"
-        >
-          <ArrowLeft size={16} />
-        </button>
-        <button
-          onClick={() => primaryActiveTab && window.electron?.ipcRenderer?.send('tab-go-forward', primaryActiveTab.id)}
-          className="p-1.5 rounded-lg hover:text-white hover:bg-white/10 transition-colors"
-        >
-          <ArrowRight size={16} />
-        </button>
-        <button
-          onClick={() => primaryActiveTab && window.electron?.ipcRenderer?.send('tab-reload', primaryActiveTab.id)}
-          className="p-1.5 rounded-lg hover:text-white hover:bg-white/10 transition-colors ml-1"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-        </button>
-      </div>
+
 
       <AnimatePresence>
         {isFocused && suggestions.length > 0 && (

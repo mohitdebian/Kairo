@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
+import { m as motion} from 'framer-motion'
 import { Clock, Search, Trash2, Globe, ShieldCheck } from 'lucide-react'
 import { useBrowserStore } from '../../store/useBrowserStore'
 

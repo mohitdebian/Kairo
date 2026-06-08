@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { motion } from 'framer-motion'
+import { m as motion} from 'framer-motion'
 import { Lock, Shield, Settings2, Trash2, CheckCircle2, Cookie, Zap } from 'lucide-react'
 import ReactDOM from 'react-dom'
 

@@ -11,3 +11,9 @@ build/
 # electron-vite specific
 /.vite
 /release
+.native-profile/
+*.tsbuildinfo
+*.recovered
+scratch_*.txt
+typecheck.log
+recover.py

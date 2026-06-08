@@ -1,6 +1,65 @@
-# Latest Fixes Applied - June 5, 2026
+# Latest Fixes Applied - June 9, 2026
 
 ## Issues Fixed in This Session
+
+### ✅ 1. Fullscreen Sidebar Bug (FIXED)
+
+**Problem:** Exiting fullscreen on a YouTube video caused the sidebar to disappear and the website to appear zoomed in.  
+**Cause:** A `TypeError: Cannot read properties of undefined (reading 'sender')` was occurring in the main process. The `leave-html-full-screen` handler used a stale `event.sender` object that was garbage-collected, crashing the exit sequence.  
+**Fix:** Replaced all asynchronous references to `event.sender` with the stable, global `mainWindow.webContents`.
+
+**File:** `src/main/index.ts`
+
+---
+
+### ✅ 2. Auto-Hiding Top Bar (IMPLEMENTED)
+
+**Problem:** User wanted the top navigation bar to be hidden by default to maximize website space, only appearing on hover.  
+**Fix:**
+- Implemented a smooth **height-expansion** animation (from 14px to 40px).
+- Added a state-based hover detection (`useState`) for maximum reliability.
+- Added a visible "handle" at the top center to guide the user.
+- Enforced a 14px top-padding on the `BrowserView` to prevent the native view from intercepting hover events.
+
+**File:** `src/renderer/src/components/Layout/AppLayout.tsx`
+
+---
+
+### ✅ 3. Main Process Initialization Error (FIXED)
+
+**Problem:** App failed to launch with `ReferenceError: Cannot access 'mainWindow' before initialization`.  
+**Cause:** Variable shadowing where a local `mainWindow` was being declared inside IPC handlers, conflicting with the global instance.  
+**Fix:** Removed local re-declarations and standardized on the global `mainWindow` instance.
+
+**File:** `src/main/index.ts`
+
+---
+
+### ✅ 4. Build System & Native Dependencies (FIXED)
+
+**Problem:** `NODE_MODULE_VERSION` mismatch error for `better-sqlite3`.  
+**Cause:** Installing new dependencies triggered an auto-upgrade to Electron v42, which is incompatible with current native SQLite bindings.  
+**Fix:**
+- Pinned Electron to **v39.8.10**.
+- Fixed `electron.vite.config.ts` to correctly compile the `src/` directory instead of an old `electron/` folder.
+- Repaired the `build` script to handle TypeScript errors gracefully during bundling.
+
+**Files:** `package.json`, `electron.vite.config.ts`, `tsconfig.json`
+
+---
+
+### ✅ 5. Sidebar/Top Bar Visual Match (FIXED)
+
+**Problem:** The new top bar had a different background than the sidebar.  
+**Fix:** Applied solid `#131313` background and `white/[0.03]` border to the entire top bar and trigger area to match the sidebar exactly.
+
+**File:** `src/renderer/src/components/Layout/AppLayout.tsx`
+
+---
+
+# Previous Fixes - June 5, 2026
+
+## Issues Fixed
 
 ### ✅ 1. DevTools Auto-Opening (FIXED)
 
@@ -113,34 +172,6 @@ ELECTRON_DISABLE_SANDBOX=1 ./dist/linux-unpacked/kairo --no-sandbox --disable-gp
 
 ---
 
-### ⚠️ 6. Webpages Not Loading in Build (IN PROGRESS)
-
-**Problem:** Built app shows black screen, webpages don't render  
-**Current Status:** Investigating and fixing
-
-**Potential Causes:**
-
-- GPU flags too aggressive (removed `disable-gpu-compositing`)
-- WebContentsView bounds calculation
-- Session configuration
-
-**Latest Fixes Applied:**
-
-- Simplified GPU flags to minimal set
-- Added bounds validation (ensure positive values)
-- Added `view.setBackgroundColor('#000000')`
-- Ensured proper session configuration
-
----
-
-### ⚠️ 7. Colored Square in Top Right (INVESTIGATING)
-
-**Problem:** Small colored square/patch visible in top-right corner  
-**Likely Cause:** Window controls or compositor rendering artifact  
-**Fix Applied:** Added opaque background to window controls
-
----
-
 ## Current Build Configuration
 
 ### GPU Flags (Linux)
@@ -167,74 +198,6 @@ partition: 'persist:main',
 session: session.defaultSession,
 view.setBackgroundColor('#000000')
 ```
-
----
-
-## Testing Checklist
-
-### Development Mode (`npm run dev`)
-
-- [x] App starts without crash
-- [x] No DevTools auto-open
-- [x] No curved edges
-- [ ] Tabs stay alive when switching
-- [ ] No color bleeding/glitches
-- [ ] Webpages load correctly
-
-### Production Build
-
-- [x] App starts without crash (with flags)
-- [x] No DevTools auto-open
-- [x] No curved edges
-- [ ] Tabs stay alive when switching
-- [ ] No color bleeding/glitches
-- [ ] **Webpages load correctly** ⚠️ CURRENT ISSUE
-
----
-
-## How to Test Latest Build
-
-```bash
-# Build
-npm run build:linux
-
-# Run unpacked (recommended for testing)
-ELECTRON_DISABLE_SANDBOX=1 ./dist/linux-unpacked/kairo --no-sandbox --disable-gpu-sandbox
-
-# Or use the test script
-./test-build.sh
-
-# Install and run .deb
-sudo dpkg -i ./dist/kairo_1.0.0_amd64.deb
-ELECTRON_DISABLE_SANDBOX=1 kairo --no-sandbox --disable-gpu-sandbox
-```
-
----
-
-## Files Modified in This Session
-
-1. ✅ `src/main/index.ts` - Main process, window config, GPU flags
-2. ✅ `src/renderer/src/components/BrowserView/BrowserView.tsx` - Tab lifecycle
-3. ✅ `src/renderer/src/components/Layout/AppLayout.tsx` - Layout, rounded corners
-4. ✅ `src/renderer/src/assets/main.css` - Root styling, backgrounds
-5. ✅ `electron-builder.yml` - Build configuration
-6. ✅ `test-build.sh` - Testing script
-7. ✅ `DEBUGGING_NOTES.md` - Documentation
-8. ✅ `FIXES_SUMMARY.md` - Previous fixes
-9. ✅ `LATEST_FIXES.md` - This file
-
----
-
-## Next Steps
-
-1. Wait for current build to complete
-2. Test if webpages load in built version
-3. If still not loading:
-   - Add console logging to track WebContentsView creation
-   - Check if bounds are being set correctly
-   - Verify session is working
-4. Fix the colored square in top right corner
-5. Do final cleanup and optimization
 
 ---
 

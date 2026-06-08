@@ -382,6 +382,8 @@ app.whenReady().then(() => {
     .replace(/kairo\/[\d\.]+ /g, '')
     .trim()
 
+  app.userAgentFallback = cleanUA
+
   // Global User-Agent and Client Hints Spoofing
   // This attempts to defeat Google's embedded browser detection globally,
   // so the user might actually be able to log in natively without the popup.
@@ -818,8 +820,8 @@ app.whenReady().then(() => {
       }
     })
 
-    // Set background color to prevent transparency bleeding - use white to make it obvious if visible
-    view.setBackgroundColor('#ffffff')
+    // Set background color to prevent transparency bleeding
+    view.setBackgroundColor('#000000')
 
     view.webContents.userAgent = app.userAgentFallback
     view.webContents.setMaxListeners(30) // Suppress false-positive max-listeners warning from Electron internals

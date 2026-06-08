@@ -207,17 +207,11 @@ export const AppLayout = () => {
         >
           {!isFullscreen && (
             <div 
-              onMouseEnter={() => {
-                console.log('Top bar hover ENTER');
-                setIsTopBarHovered(true);
-              }}
-              onMouseLeave={() => {
-                console.log('Top bar hover LEAVE');
-                setIsTopBarHovered(false);
-              }}
+              onMouseEnter={() => setIsTopBarHovered(true)}
+              onMouseLeave={() => setIsTopBarHovered(false)}
               className={cn(
                 "absolute top-0 left-0 right-0 z-[1000] transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] overflow-hidden bg-[#131313] border-b border-white/[0.01]",
-                isTopBarHovered ? "h-10 shadow-2xl border-white/[0.03]" : "h-[14px]"
+                isTopBarHovered ? "h-[40px] shadow-2xl border-white/[0.03]" : "h-[14px]"
               )}
             >
               {/* Visible handle to show where to hover */}
@@ -226,7 +220,7 @@ export const AppLayout = () => {
               )}
               
               <div className={cn(
-                "h-10 w-full drag-region flex items-center justify-between px-3 bg-[#131313] border-b border-white/[0.03] transition-opacity duration-200",
+                "h-[40px] w-full drag-region flex items-center justify-between px-3 bg-[#131313] border-b border-white/[0.03] transition-opacity duration-200",
                 isTopBarHovered ? "opacity-100" : "opacity-0 pointer-events-none"
               )}>
               <div className="flex items-center gap-1 no-drag">
@@ -270,8 +264,8 @@ export const AppLayout = () => {
           <div className={cn('flex-1 relative overflow-hidden')}>
             <div
               className={cn(
-                'w-full h-full relative overflow-hidden bg-black',
-                !isFullscreen && 'pt-[14px]'
+                'w-full h-full relative overflow-hidden bg-black transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]',
+                !isFullscreen && (isTopBarHovered ? 'pt-[40px]' : 'pt-[14px]')
               )}
             >
               <BrowserView />

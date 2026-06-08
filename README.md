@@ -26,7 +26,7 @@ We are building Kairo entirely in the open. Our goal is to create a community-dr
 ## 📸 Screenshots
 
 <div align="center">
-  <img src="./launch-imgs/banner.png" alt="Kairo Browser UI" />
+  <img src="./launch-imgs/header.png" alt="Kairo Browser UI" />
   <p><i>Kairo's beautiful, glassmorphic UI with Vertical Tabs and Spaces.</i></p>
 </div>
 

@@ -64,7 +64,7 @@ export const FindInPage = () => {
   if (!isFindOpen) return null
 
   return (
-    <div className="absolute top-3 right-8 z-[2000] w-[340px] h-10 bg-[#1f1f23] rounded-lg border border-white/10 shadow-2xl flex items-center px-3 gap-2">
+    <div className="absolute top-3 right-8 z-[2000] w-[340px] h-10 bg-[#1f1f23] rounded-lg border border-white/10 shadow-2xl flex items-center pl-3 pr-2 gap-2 overflow-hidden">
       <Search size={14} className="text-white/40 shrink-0" />
       
       <input
@@ -74,7 +74,7 @@ export const FindInPage = () => {
         onChange={(e) => handleSearch(e.target.value, false)}
         onKeyDown={handleKeyDown}
         placeholder="Find in page"
-        className="flex-1 h-full bg-transparent border-none outline-none text-white text-[13px] placeholder-white/30"
+        className="flex-1 min-w-0 h-full bg-transparent border-none outline-none text-white text-[13px] placeholder-white/30"
       />
       
       <span className="text-[12px] text-white/50 shrink-0 font-mono text-right min-w-[30px]">

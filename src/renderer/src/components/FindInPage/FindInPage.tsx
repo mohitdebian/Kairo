@@ -64,8 +64,8 @@ export const FindInPage = () => {
   if (!isFindOpen) return null
 
   return (
-    <div className="absolute top-4 right-8 z-[2000] w-80 bg-[#1f1f23] rounded-lg border border-white/10 shadow-2xl flex items-center p-1.5 gap-2">
-      <Search size={14} className="text-white/40 ml-1 shrink-0" />
+    <div className="absolute top-3 right-8 z-[2000] w-[340px] h-10 bg-[#1f1f23] rounded-lg border border-white/10 shadow-2xl flex items-center px-3 gap-2">
+      <Search size={14} className="text-white/40 shrink-0" />
       
       <input
         ref={inputRef}
@@ -74,31 +74,31 @@ export const FindInPage = () => {
         onChange={(e) => handleSearch(e.target.value, false)}
         onKeyDown={handleKeyDown}
         placeholder="Find in page"
-        className="flex-1 bg-transparent border-none outline-none text-white text-[13px] placeholder-white/30"
+        className="flex-1 h-full bg-transparent border-none outline-none text-white text-[13px] placeholder-white/30"
       />
       
-      <span className="text-[12px] text-white/50 shrink-0 font-mono">
+      <span className="text-[12px] text-white/50 shrink-0 font-mono text-right min-w-[30px]">
         {findMatch.matches > 0 ? `${findMatch.activeMatchOrdinal}/${findMatch.matches}` : '0/0'}
       </span>
       
-      <div className="flex items-center gap-0.5 border-l border-white/10 pl-1 ml-1 shrink-0">
+      <div className="flex items-center gap-1 border-l border-white/10 pl-2 ml-1 shrink-0">
         <button
           onClick={() => handleSearch(findText, true, false)}
-          className="p-1.5 hover:bg-white/10 rounded text-white/60 hover:text-white transition-colors"
+          className="w-6 h-6 flex items-center justify-center hover:bg-white/10 rounded text-white/60 hover:text-white transition-colors"
           title="Previous (Shift+Enter)"
         >
           <ChevronUp size={14} />
         </button>
         <button
           onClick={() => handleSearch(findText, true, true)}
-          className="p-1.5 hover:bg-white/10 rounded text-white/60 hover:text-white transition-colors"
+          className="w-6 h-6 flex items-center justify-center hover:bg-white/10 rounded text-white/60 hover:text-white transition-colors"
           title="Next (Enter)"
         >
           <ChevronDown size={14} />
         </button>
         <button
           onClick={handleClose}
-          className="p-1.5 hover:bg-red-500/20 hover:text-red-400 rounded text-white/60 transition-colors ml-1"
+          className="w-6 h-6 flex items-center justify-center hover:bg-red-500/20 hover:text-red-400 rounded text-white/60 transition-colors"
           title="Close (Esc)"
         >
           <X size={14} />

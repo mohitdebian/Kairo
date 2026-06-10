@@ -149,10 +149,17 @@ export const CommandPalette = () => {
       if (inlineSuggestion && inlineSuggestion.toLowerCase().startsWith(query.toLowerCase())) {
         setQuery(inlineSuggestion)
         setInlineSuggestion('')
-      } else if (actions[selectedIndex] && 'subtitle' in actions[selectedIndex]) {
-        const url = (actions[selectedIndex] as any).subtitle
-        if (url) {
-          setQuery(url.replace(/^https?:\/\/(www\.)?/, ''))
+      } else {
+        // Try to get URL from selected item, or fallback to first omnibox result
+        let urlToFill = ''
+        if (actions[selectedIndex] && 'subtitle' in actions[selectedIndex]) {
+          urlToFill = (actions[selectedIndex] as any).subtitle
+        } else if (omniboxActions.length > 0) {
+          urlToFill = (omniboxActions[0] as any).subtitle
+        }
+        
+        if (urlToFill) {
+          setQuery(urlToFill.replace(/^https?:\/\/(www\.)?/, ''))
           setInlineSuggestion('')
         }
       }

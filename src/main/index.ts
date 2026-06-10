@@ -225,6 +225,11 @@ function createWindow(): void {
     document.getElementById('prev').addEventListener('click', () => doSearch(false));
     document.getElementById('next').addEventListener('click', () => doSearch(true));
     document.getElementById('close').addEventListener('click', () => ipcRenderer.send('close-find'));
+    
+    // Close when clicking outside (losing focus)
+    window.addEventListener('blur', () => {
+      ipcRenderer.send('close-find');
+    });
   </script>
 </body>
 </html>

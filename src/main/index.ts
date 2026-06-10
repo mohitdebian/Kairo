@@ -243,6 +243,7 @@ function createWindow(): void {
       }
       const bounds = mainWindow.getContentBounds()
       findView.setBounds({ x: bounds.width - 380, y: 10, width: 360, height: 60 })
+      findView.webContents.focus()
       findView.webContents.send('focus-find', tabId)
     } else {
       if (mainWindow.contentView.children.includes(findView)) {
@@ -256,6 +257,10 @@ function createWindow(): void {
   })
 
   ipcMain.on('close-find', () => {
+    mainWindow.webContents.send('shortcut-find-in-page-close')
+  })
+
+  findView.webContents.on('blur', () => {
     mainWindow.webContents.send('shortcut-find-in-page-close')
   })
 

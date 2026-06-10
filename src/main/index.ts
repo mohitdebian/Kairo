@@ -947,7 +947,9 @@ app.whenReady().then(() => {
     view.webContents.setMaxListeners(30) // Suppress false-positive max-listeners warning from Electron internals
 
     view.webContents.on('found-in-page', (_e, result) => {
-      mainWindow.webContents.send('found-in-page-result', tabId, result)
+      if (findView && !findView.webContents.isDestroyed()) {
+        findView.webContents.send('found-in-page-result', result)
+      }
     })
 
     view.webContents.on('did-navigate', (_e, navUrl) => {

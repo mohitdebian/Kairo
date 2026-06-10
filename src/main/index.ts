@@ -24,8 +24,8 @@ if (process.platform === 'linux') {
 // --- Extreme RAM Optimization (Target: < 200MB) ---
 // Disable Site Isolation (saves ~20-30% RAM per tab by allowing cross-site iframes in the same process)
 app.commandLine.appendSwitch('disable-site-isolation-trials')
-// Force Chromium into low-memory mode (disables some visual fluff and optimizes V8 GC for tight memory)
-app.commandLine.appendSwitch('enable-low-end-device-mode')
+// Provide a stable software WebGL fallback to prevent GPU stalls and ReadPixels errors
+app.commandLine.appendSwitch('enable-unsafe-swiftshader')
 // Limit the number of background renderer processes to force process-sharing between tabs
 app.commandLine.appendSwitch('enable-features', 'SmoothScrolling,OverlayScrollbar,TouchpadOverscrollHistoryNavigation,OverscrollHistoryNavigation')
 
@@ -222,6 +222,10 @@ function createWindow(): void {
         }
         if (input.key.toLowerCase() === 't') {
           mainWindow.webContents.send('shortcut-new-tab')
+          event.preventDefault()
+        }
+        if (input.key.toLowerCase() === 'f') {
+          mainWindow.webContents.send('shortcut-find-in-page')
           event.preventDefault()
         }
         if (input.key.toLowerCase() === 'r') {
@@ -826,6 +830,10 @@ app.whenReady().then(() => {
     view.webContents.userAgent = app.userAgentFallback
     view.webContents.setMaxListeners(30) // Suppress false-positive max-listeners warning from Electron internals
 
+    view.webContents.on('found-in-page', (_e, result) => {
+      mainWindow.webContents.send('found-in-page-result', tabId, result)
+    })
+
     view.webContents.on('did-navigate', (_e, navUrl) => {
       mainWindow.webContents.send('tab-navigated', tabId, navUrl)
     })
@@ -913,6 +921,10 @@ app.whenReady().then(() => {
           }
           if (input.key.toLowerCase() === 't') {
             mainWindow.webContents.send('shortcut-new-tab')
+            e.preventDefault()
+          }
+          if (input.key.toLowerCase() === 'f') {
+            mainWindow.webContents.send('shortcut-find-in-page')
             e.preventDefault()
           }
           if (input.key.toLowerCase() === 'r') {
@@ -1299,6 +1311,20 @@ app.whenReady().then(() => {
     const view = tabViews.get(tabId)
     if (view) {
       view.webContents.reload()
+    }
+  })
+
+  ipcMain.on('find-in-page', (_event, tabId: string, text: string, options?: any) => {
+    const view = tabViews.get(tabId)
+    if (view && text) {
+      view.webContents.findInPage(text, options)
+    }
+  })
+
+  ipcMain.on('stop-find-in-page', (_event, tabId: string, action: 'clearSelection' | 'keepSelection' | 'activateSelection') => {
+    const view = tabViews.get(tabId)
+    if (view) {
+      view.webContents.stopFindInPage(action)
     }
   })
 

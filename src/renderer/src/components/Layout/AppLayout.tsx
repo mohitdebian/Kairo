@@ -4,6 +4,7 @@ import { CommandPalette } from '../CommandPalette/CommandPalette'
 import { DevPanel } from '../DevPanel/DevPanel'
 import { SettingsModal } from '../Settings/SettingsModal'
 import { AIGroupPanel } from '../AI/AIGroupPanel'
+import { FindInPage } from '../FindInPage/FindInPage'
 import { useBrowserStore } from '../../store/useBrowserStore'
 import { ShieldCheck, Minus, Square, X } from 'lucide-react'
 import { cn } from '../../utils/cn'
@@ -45,6 +46,7 @@ export const AppLayout = () => {
   )
   const activeTabUrl = useBrowserStore((state) => state.tabs.find((t) => t.id === activeTabId)?.url)
   const isFullscreen = useBrowserStore((state) => state.isFullscreen)
+  const isFindOpen = useBrowserStore((state) => state.isFindOpen)
 
   useEffect(() => {
     const handleFullscreenState = (isFullscreen: boolean) => {
@@ -78,6 +80,11 @@ export const AppLayout = () => {
       if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
         e.preventDefault()
         useBrowserStore.getState().splitCurrentPane('horizontal')
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault()
+        useBrowserStore.getState().toggleFind(true)
       }
     }
     const handleOpenInSpace = (data: { url: string; spaceId: string }) => {
@@ -153,6 +160,9 @@ export const AppLayout = () => {
     window.addEventListener('keydown', handleNewTabDOM)
     window.electron.ipcRenderer.on('window-fullscreen-state', handleFullscreenState)
     window.electron.ipcRenderer.on('shortcut-new-tab', handleNewTab)
+    window.electron.ipcRenderer.on('shortcut-find-in-page', () => {
+      useBrowserStore.getState().toggleFind(true)
+    })
     window.electron.ipcRenderer.on('open-in-space', handleOpenInSpace)
     window.electron.ipcRenderer.on('bookmark-url', handleBookmarkUrl)
     window.electron.ipcRenderer.on('add-tab-to-folder', handleAddTabToFolder)
@@ -181,6 +191,7 @@ export const AppLayout = () => {
       window.removeEventListener('keydown', handleNewTabDOM)
       window.electron.ipcRenderer.removeAllListeners('window-fullscreen-state')
       window.electron.ipcRenderer.removeAllListeners('shortcut-new-tab')
+      window.electron.ipcRenderer.removeAllListeners('shortcut-find-in-page')
       window.electron.ipcRenderer.removeAllListeners('open-in-space')
       window.electron.ipcRenderer.removeAllListeners('bookmark-url')
       window.electron.ipcRenderer.removeAllListeners('add-tab-to-folder')
@@ -265,7 +276,7 @@ export const AppLayout = () => {
             <div
               className={cn(
                 'w-full h-full relative overflow-hidden bg-black transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]',
-                !isFullscreen && (isTopBarHovered ? 'pt-[40px]' : 'pt-[14px]')
+                !isFullscreen && (isFindOpen ? 'pt-[60px]' : isTopBarHovered ? 'pt-[40px]' : 'pt-[14px]')
               )}
             >
               <BrowserView />
@@ -276,6 +287,7 @@ export const AppLayout = () => {
       </div>
       <CommandPalette />
       <SettingsModal />
+      <FindInPage />
     </div>
   )
 }

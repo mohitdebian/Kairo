@@ -144,10 +144,18 @@ export const CommandPalette = () => {
     : defaultActions.filter(a => a.type !== 'Navigation')
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Tab' && inlineSuggestion && inlineSuggestion.toLowerCase().startsWith(query.toLowerCase())) {
+    if (e.key === 'Tab') {
       e.preventDefault()
-      setQuery(inlineSuggestion)
-      setInlineSuggestion('')
+      if (inlineSuggestion && inlineSuggestion.toLowerCase().startsWith(query.toLowerCase())) {
+        setQuery(inlineSuggestion)
+        setInlineSuggestion('')
+      } else if (actions[selectedIndex] && 'subtitle' in actions[selectedIndex]) {
+        const url = (actions[selectedIndex] as any).subtitle
+        if (url) {
+          setQuery(url.replace(/^https?:\/\/(www\.)?/, ''))
+          setInlineSuggestion('')
+        }
+      }
       return
     }
     if (e.key === 'ArrowDown') {

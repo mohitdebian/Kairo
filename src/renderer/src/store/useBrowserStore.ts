@@ -170,6 +170,14 @@ interface BrowserState {
   toggleSettings: () => void
   updateWorkspaceNote: (workspaceId: string, note: string) => void
   setSearchEngine: (engine: 'google' | 'duckduckgo') => void
+
+  // Find in Page
+  isFindOpen: boolean
+  findText: string
+  findMatch: { activeMatchOrdinal: number; matches: number }
+  toggleFind: (isOpen?: boolean) => void
+  setFindText: (text: string) => void
+  setFindMatch: (activeMatchOrdinal: number, matches: number) => void
 }
 
 const defaultWorkspaces: Workspace[] = [
@@ -202,6 +210,16 @@ export const useBrowserStore = create<BrowserState>()(
 
       isDownloadsOpen: false,
       downloads: [],
+
+      // Find in Page
+      isFindOpen: false,
+      findText: '',
+      findMatch: { activeMatchOrdinal: 0, matches: 0 },
+      toggleFind: (isOpen) =>
+        set((state) => ({ isFindOpen: isOpen !== undefined ? isOpen : !state.isFindOpen })),
+      setFindText: (text) => set({ findText: text }),
+      setFindMatch: (activeMatchOrdinal, matches) =>
+        set({ findMatch: { activeMatchOrdinal, matches } }),
 
       layouts: {},
 

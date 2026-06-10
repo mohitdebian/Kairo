@@ -4,7 +4,6 @@ import { CommandPalette } from '../CommandPalette/CommandPalette'
 import { DevPanel } from '../DevPanel/DevPanel'
 import { SettingsModal } from '../Settings/SettingsModal'
 import { AIGroupPanel } from '../AI/AIGroupPanel'
-import { FindInPage } from '../FindInPage/FindInPage'
 import { useBrowserStore } from '../../store/useBrowserStore'
 import { ShieldCheck, Minus, Square, X } from 'lucide-react'
 import { cn } from '../../utils/cn'
@@ -47,6 +46,10 @@ export const AppLayout = () => {
   const activeTabUrl = useBrowserStore((state) => state.tabs.find((t) => t.id === activeTabId)?.url)
   const isFullscreen = useBrowserStore((state) => state.isFullscreen)
   const isFindOpen = useBrowserStore((state) => state.isFindOpen)
+
+  useEffect(() => {
+    window.electron.ipcRenderer.send('toggle-native-find', activeTabId, isFindOpen)
+  }, [isFindOpen, activeTabId])
 
   useEffect(() => {
     const handleFullscreenState = (isFullscreen: boolean) => {
@@ -163,6 +166,9 @@ export const AppLayout = () => {
     window.electron.ipcRenderer.on('shortcut-find-in-page', () => {
       useBrowserStore.getState().toggleFind(true)
     })
+    window.electron.ipcRenderer.on('shortcut-find-in-page-close', () => {
+      useBrowserStore.getState().toggleFind(false)
+    })
     window.electron.ipcRenderer.on('open-in-space', handleOpenInSpace)
     window.electron.ipcRenderer.on('bookmark-url', handleBookmarkUrl)
     window.electron.ipcRenderer.on('add-tab-to-folder', handleAddTabToFolder)
@@ -276,7 +282,7 @@ export const AppLayout = () => {
             <div
               className={cn(
                 'w-full h-full relative overflow-hidden bg-black transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]',
-                !isFullscreen && (isFindOpen ? 'pt-[60px]' : isTopBarHovered ? 'pt-[40px]' : 'pt-[14px]')
+                !isFullscreen && (isTopBarHovered ? 'pt-[40px]' : 'pt-[14px]')
               )}
             >
               <BrowserView />
@@ -287,7 +293,6 @@ export const AppLayout = () => {
       </div>
       <CommandPalette />
       <SettingsModal />
-      <FindInPage />
     </div>
   )
 }

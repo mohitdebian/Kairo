@@ -346,7 +346,7 @@ export const Sidebar = () => {
     useShallow((s) => [s.isSidebarCollapsed, s.toggleSidebarCollapse])
   )
   const [isPlusMenuOpen, setPlusMenuOpen] = useState(false)
-  const [sidebarView, setSidebarView] = useState<'main' | 'create-space'>('main')
+  const [sidebarView, setSidebarView] = useState<'main' | 'create-space' | 'edit-theme'>('main')
 
   // Global blur listener for Plus Menu
   useEffect(() => {
@@ -815,7 +815,14 @@ export const Sidebar = () => {
               ))}
             </div>
 
-            <div className="shrink-0 relative">
+            <div className="shrink-0 flex items-center gap-1.5 relative">
+              <button
+                onClick={() => useBrowserStore.getState().toggleSettings()}
+                className="text-text-secondary hover:text-text-primary hover:bg-white/10 p-1.5 rounded-lg transition-colors"
+                title="Settings"
+              >
+                <Settings size={16} />
+              </button>
               <button
                 onClick={() => setPlusMenuOpen(!isPlusMenuOpen)}
                 className="text-text-secondary hover:text-text-primary hover:bg-white/10 p-1.5 rounded-lg transition-colors"
@@ -937,7 +944,7 @@ export const Sidebar = () => {
                 </button>
                 <button
                   onClick={() => {
-                    useBrowserStore.getState().addFolder({ name: 'New Folder', workspaceId: activeWorkspaceId })
+                    useBrowserStore.getState().createFolder('New Folder', activeWorkspaceId)
                     setPlusMenuOpen(false)
                   }}
                   className="w-full text-left px-2 py-2 text-[13px] text-white/90 hover:bg-white/10 rounded-md flex items-center gap-2.5 transition-colors"

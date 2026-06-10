@@ -31,8 +31,9 @@ app.commandLine.appendSwitch('enable-features', 'SmoothScrolling,OverlayScrollba
 
 // Remove the manual Client Hint disable so Google sees valid native modern browser hints.
 
-let mainWindow: BrowserWindow
+  let mainWindow: BrowserWindow
 const tabViews = new Map<string, WebContentsView>()
+let findView: WebContentsView
 
 function notifyWebContentsResize(view: WebContentsView): void {
   if (view.webContents.isDestroyed()) return
@@ -146,6 +147,111 @@ function createWindow(): void {
     item.once('done', (_e, state) => {
       mainWindow.webContents.send('download-complete', { id, state })
     })
+  })
+
+  // Initialize Find in Page native overlay
+  findView = new WebContentsView({
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    }
+  })
+  findView.setBackgroundColor('#00000000') // Transparent
+  
+  const findHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { margin: 0; padding: 10px; background: transparent; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
+    .container { background: #1f1f23; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; display: flex; align-items: center; padding: 0 12px; height: 40px; gap: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    input { flex: 1; background: transparent; border: none; color: white; outline: none; font-size: 13px; min-width: 0; }
+    input::placeholder { color: rgba(255,255,255,0.3); }
+    .matches { font-size: 12px; color: rgba(255,255,255,0.5); font-family: monospace; white-space: nowrap; min-width: 30px; text-align: right; }
+    .divider { width: 1px; height: 20px; background: rgba(255,255,255,0.1); margin: 0 4px; }
+    button { background: transparent; border: none; color: rgba(255,255,255,0.6); cursor: pointer; width: 24px; height: 24px; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+    button:hover { background: rgba(255,255,255,0.1); color: white; }
+    button.close:hover { background: rgba(239,68,68,0.2); color: #f87171; }
+    svg { width: 14px; height: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:rgba(255,255,255,0.4)"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    <input type="text" id="search" placeholder="Find in page" />
+    <span class="matches" id="match">0/0</span>
+    <div class="divider"></div>
+    <button id="prev" title="Previous (Shift+Enter)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+    <button id="next" title="Next (Enter)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+    <button id="close" class="close" title="Close (Esc)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+  </div>
+  <script>
+    const { ipcRenderer } = require('electron')
+    const input = document.getElementById('search')
+    const match = document.getElementById('match')
+    
+    let activeTabId = null;
+
+    ipcRenderer.on('focus-find', (e, tabId) => {
+      activeTabId = tabId;
+      input.focus();
+      input.select();
+    });
+
+    ipcRenderer.on('found-in-page-result', (e, result) => {
+      if (result.matches > 0) {
+        match.textContent = \`\${result.activeMatchOrdinal}/\${result.matches}\`
+      } else {
+        match.textContent = '0/0'
+      }
+    });
+
+    function doSearch(forward = true) {
+      const text = input.value;
+      if (!text) {
+        match.textContent = '0/0';
+        ipcRenderer.send('stop-find-in-page', activeTabId, 'clearSelection');
+        return;
+      }
+      ipcRenderer.send('find-in-page', activeTabId, text, { forward, findNext: true });
+    }
+
+    input.addEventListener('input', () => doSearch(true));
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doSearch(!e.shiftKey);
+      if (e.key === 'Escape') ipcRenderer.send('close-find');
+    });
+
+    document.getElementById('prev').addEventListener('click', () => doSearch(false));
+    document.getElementById('next').addEventListener('click', () => doSearch(true));
+    document.getElementById('close').addEventListener('click', () => ipcRenderer.send('close-find'));
+  </script>
+</body>
+</html>
+  `
+  findView.webContents.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(findHtml)}`)
+
+  ipcMain.on('toggle-native-find', (_event, tabId: string, isOpen: boolean) => {
+    if (isOpen) {
+      if (!mainWindow.contentView.children.includes(findView)) {
+        mainWindow.contentView.addChildView(findView)
+      }
+      const bounds = mainWindow.getContentBounds()
+      findView.setBounds({ x: bounds.width - 380, y: 10, width: 360, height: 60 })
+      findView.webContents.send('focus-find', tabId)
+    } else {
+      if (mainWindow.contentView.children.includes(findView)) {
+        mainWindow.contentView.removeChildView(findView)
+      }
+      const view = tabViews.get(tabId)
+      if (view) {
+        view.webContents.stopFindInPage('clearSelection')
+      }
+    }
+  })
+
+  ipcMain.on('close-find', () => {
+    mainWindow.webContents.send('shortcut-find-in-page-close')
   })
 
   // Set the window to ignore menu bar for cleaner UI

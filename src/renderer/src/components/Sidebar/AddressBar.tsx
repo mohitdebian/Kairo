@@ -79,6 +79,7 @@ export const AddressBar = ({ primaryActiveTab }: AddressBarProps) => {
       window.electron.ipcRenderer.send('omnibox-visit', url)
     }
 
+    const store = useBrowserStore.getState()
     if (isTab && tabId) {
       store.setActiveTab(tabId)
     } else {
@@ -99,6 +100,7 @@ export const AddressBar = ({ primaryActiveTab }: AddressBarProps) => {
             : `https://duckduckgo.com/?q=${encodeURIComponent(finalUrl)}`
       }
 
+      const store = useBrowserStore.getState()
       if (primaryActiveTab?.id) {
         store.updateTabUrl(primaryActiveTab.id, finalUrl)
         if (window.electron?.ipcRenderer) {

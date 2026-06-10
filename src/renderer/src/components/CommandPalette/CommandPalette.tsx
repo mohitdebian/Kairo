@@ -18,6 +18,7 @@ export const CommandPalette = () => {
   const searchEngine = useBrowserStore((state) => state.searchEngine)
 
   const [query, setQuery] = useState('')
+  const [inlineSuggestion, setInlineSuggestion] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [omniboxResults, setOmniboxResults] = useState<any[]>([])
 
@@ -50,6 +51,7 @@ export const CommandPalette = () => {
     if (!query || query.trim() === '') {
       setOmniboxResults([])
       setSelectedIndex(0)
+      setInlineSuggestion('')
       return
     }
 
@@ -58,6 +60,23 @@ export const CommandPalette = () => {
       const results = await window.electron.ipcRenderer.invoke('omnibox-search', query, activeTabs, [])
       setOmniboxResults(results || [])
       setSelectedIndex(0)
+
+      let newSuggestion = ''
+      if (query.trim() !== '' && results && results.length > 0) {
+        for (let i = 0; i < Math.min(3, results.length); i++) {
+          const result = results[i]
+          if (result && result.url && result.type !== 'search') {
+            let url = result.url.replace(/^https?:\/\/(www\.)?/, '')
+            let q = query.replace(/^https?:\/\/(www\.)?/, '')
+            
+            if (url.toLowerCase().startsWith(q.toLowerCase()) && q.length > 0) {
+              newSuggestion = query + url.slice(q.length)
+              break
+            }
+          }
+        }
+      }
+      setInlineSuggestion(newSuggestion)
     }, 150)
 
     return () => clearTimeout(timer)
@@ -125,6 +144,12 @@ export const CommandPalette = () => {
     : defaultActions.filter(a => a.type !== 'Navigation')
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Tab' && inlineSuggestion && inlineSuggestion.toLowerCase().startsWith(query.toLowerCase())) {
+      e.preventDefault()
+      setQuery(inlineSuggestion)
+      setInlineSuggestion('')
+      return
+    }
     if (e.key === 'ArrowDown') {
       e.preventDefault()
       setSelectedIndex((prev) => (prev + 1) % actions.length)
@@ -166,18 +191,29 @@ export const CommandPalette = () => {
             className="relative w-full max-w-2xl bg-[#09090b]/95 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
           >
             <div className="flex items-center px-4 py-4 border-b border-white/10">
-              <Search size={20} className="text-white/40 mr-3" />
-              <input
-                ref={inputRef}
-                autoFocus
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Search history, tabs, or type a command..."
-                className="bg-transparent border-none outline-none text-lg text-white w-full placeholder-white/30"
-              />
-              <div className="flex items-center gap-1 bg-white/5 rounded px-2 py-1 text-xs text-white/50 font-medium tracking-widest">ESC</div>
+              <Search size={20} className="text-white/40 mr-3 shrink-0" />
+              <div className="relative flex-1 flex items-center overflow-hidden">
+                {inlineSuggestion && inlineSuggestion.toLowerCase().startsWith(query.toLowerCase()) && (
+                  <div className="absolute inset-0 flex items-center text-lg pointer-events-none whitespace-pre overflow-hidden">
+                    <span className="opacity-0">{query}</span>
+                    <span className="text-white/30">{inlineSuggestion.slice(query.length)}</span>
+                  </div>
+                )}
+                <input
+                  ref={inputRef}
+                  autoFocus
+                  type="text"
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value)
+                    setInlineSuggestion('')
+                  }}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Search history, tabs, or type a command..."
+                  className="relative z-10 bg-transparent border-none outline-none text-lg text-white w-full placeholder-white/30"
+                />
+              </div>
+              <div className="flex items-center gap-1 bg-white/5 rounded px-2 py-1 text-xs text-white/50 font-medium tracking-widest shrink-0 ml-3">ESC</div>
             </div>
 
             <div className="max-h-[60vh] overflow-y-auto p-2 no-scrollbar">
